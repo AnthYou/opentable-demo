@@ -233,7 +233,7 @@ without normalisation on both the record and the query side.
 | 11896 | Peohe's – Coronado Waterfront Restaurant | Coronado, CA | Coronado |
 | 63439 | Lasagna Restaurant – Chelsea | New York, NY | Chelsea |
 
-**Chains mixing both dash glyphs across their own locations — all 4:**
+**Chains mixing both dash glyphs across their own locations — all 5:**
 
 The separator is inconsistent inside a single brand, so a chain cannot be grouped on the glyph.
 
@@ -259,6 +259,13 @@ The separator is inconsistent inside a single brand, so a chain cannot be groupe
 | 110191 | `BD's Mongolian Grill – Arena` | Columbus |
 | 110188 | `BD's Mongolian Grill - Easton` | Columbus |
 | 110209 | `BD's Mongolian Grill – Dublin` | Dublin |
+
+*Big Daddy's*
+
+| objectID | name (raw) | city |
+|---|---|---|
+| 30991 | `Big Daddy's - Gramercy Park` | New York |
+| 42784 | `Big Daddy’s – Upper West Side` | New York |
 
 *Café 21*
 
@@ -1766,7 +1773,7 @@ Two observations on this set:
 ### A2.2 — suffixed locations: the real chain encoding
 
 1086 records carry a ` - <location>` suffix. Grouping on the base name with the suffix
-stripped gives **212 distinct base names at more than one location, covering 720 records.**
+stripped gives **213 distinct base names at more than one location, covering 722 records.**
 
 This is what makes same-city disambiguation reproducible on the extract — see A2.3. Complete
 roster of every multi-location group, largest first:
@@ -2605,6 +2612,13 @@ roster of every multi-location group, largest first:
 |---|---|---|---|
 | 38848 | Big Bowl - Edina | Edina, MN | Edina |
 | 38950 | Big Bowl - Minnetonka | Minnetonka, MN | Minnetonka |
+
+**Big Daddy's** — 2 locations
+
+| objectID | name | city | neighborhood |
+|---|---|---|---|
+| 30991 | Big Daddy's - Gramercy Park | New York, NY | Gramercy / Flatiron |
+| 42784 | Big Daddy’s – Upper West Side | New York, NY | Upper West Side |
 
 **Big Fish** — 2 locations
 
@@ -3553,8 +3567,8 @@ roster of every multi-location group, largest first:
 
 ### A2.3 — same-city clusters
 
-**43 base names have two or more locations in the same city**, forming
-**50 distinct (base name, city) clusters** across **111 records**.
+**44 base names have two or more locations in the same city**, forming
+**51 distinct (base name, city) clusters** across **113 records**.
 
 CLAUDE.md section 3 previously stated same-city ambiguity was not reproducible on this extract.
 That held only for exact string equality (A2.1). It is reproducible, on real records, and no
@@ -3654,6 +3668,13 @@ synthetic case is needed. Complete list:
 |---|---|---|---|
 | 87118 | Benihana - Houston | Far Westheimer | 29.73709, -95.540337 |
 | 87094 | Benihana - Houston - Downtown | Downtown | 29.756011, -95.369672 |
+
+**Big Daddy's — New York** (2 locations)
+
+| objectID | name | neighborhood | lat, lng |
+|---|---|---|---|
+| 30991 | Big Daddy's - Gramercy Park | Gramercy / Flatiron | 40.737838, -73.987713 |
+| 42784 | Big Daddy’s – Upper West Side | Upper West Side | 40.791317, -73.974097 |
 
 **Buca di Beppo — San Diego** (2 locations)
 
@@ -3923,7 +3944,7 @@ synthetic case is needed. Complete list:
 
 ### A2.4 — clusters neighborhood cannot separate
 
-On **9 of the 50 clusters**, two or more locations share the same `neighborhood`.
+On **9 of the 51 clusters**, two or more locations share the same `neighborhood`.
 Neighborhood alone therefore cannot disambiguate them, which makes distance the deciding
 signal and the last link of the `location_label` fallback chain load-bearing rather than
 decorative. Complete list:

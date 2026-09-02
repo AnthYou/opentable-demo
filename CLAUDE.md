@@ -105,6 +105,11 @@ disambiguate locations.
 → Compute a single `location_label` at transform time with an explicit fallback
 chain: neighborhood (when distinct from city) → city → city + distance.
 
+The third rung needs the user's position, so the transform computes the first two and
+sets `location_label_ambiguous` on the 18 records where they are insufficient — the 9
+same-city clusters whose siblings share a neighborhood. The front end must append
+distance whenever that flag is true, or those rows render identically.
+
 **`food_type` — 114 distinct values, overlapping and competing.** `Steak` (123)
 against `Steakhouse` (328); `American` (865) against `Contemporary American`
 (649) against `Californian` (96). A user refining by cuisine has to guess which
@@ -127,10 +132,11 @@ not separate them — only `city` or distance does. Two more differ only by case
 `Range` (4221) / `range` (141001) and `Eleven` (150715) / `ELEVEN` (3204).
 
 **Suffixed locations — the real chain encoding.** 1,086 records carry a
-` - <location>` suffix in `name`. Grouping on the base name (suffix stripped):
-**212 distinct base names have more than one location, covering 720 records, and
-43 of them have two or more locations in the same city** — 50 distinct
-(base name, city) clusters, 111 records. Largest: Cyclone Anaya's ×5 in Houston
+` - <location>` suffix in `name`. Grouping on the base name (suffix stripped, glyph
+variants folded — see below):
+**213 distinct base names have more than one location, covering 722 records, and
+44 of them have two or more locations in the same city** — 51 distinct
+(base name, city) clusters, 113 records. Largest: Cyclone Anaya's ×5 in Houston
 (145369, 145366, 151276, 145381, 145375), Churrascos ×4 in Houston (883, 150679,
 114319, 882), then ×3 clusters for Perry's Steakhouse (Houston), Atria's
 (Pittsburgh), Sushi Zushi (San Antonio), The Wine Bistro (Columbus), Stone Werks
@@ -142,16 +148,23 @@ introduced.
 
 Two consequences for the transform:
 
+- **Glyph folding is load-bearing, not cosmetic.** Grouping on the raw lowercased
+  base name finds only 212 chains. Folding diacritics and unifying the apostrophe and
+  dash glyphs finds a 213th: `Big Daddy's` — 30991 `Big Daddy's - Gramercy Park`
+  (straight apostrophe, hyphen) and 42784 `Big Daddy's – Upper West Side` (curly
+  apostrophe, en dash), **both in New York**. A chain and a same-city cluster are
+  invisible without the fold, which is why `foldName` in the transform is the single
+  definition of chain identity and the profiling script uses the same one.
 - **`chain_name` cannot be a blind split on the separator.** 406 of the 1,086
   suffixes match no city or neighborhood in the corpus: `Tien - Teppanyaki /
   Shabu Shabu` (11437) is a cuisine descriptor, `The Westgate Hotel - The
   Westgate Room` (72961) is a room, `Sixth & Pine - Nordstrom Green Hills
   Nashville` (67003) is a department store, and `Bocca Di Bacco (Theatre
   District - 45th St.)` (4478) carries the separator inside parentheses. The
-  separator glyph is also inconsistent *within* a single brand — `Café 21` uses
-  a hyphen on 64003 and an en dash on 64000; same for `BD's Mongolian Grill`,
-  `Merriman's` and `Zodiac at Neiman Marcus`.
-- **Neighborhood alone does not disambiguate.** On 9 of the 50 same-city
+  separator glyph is also inconsistent *within* a single brand on 5 chains —
+  `Café 21` uses a hyphen on 64003 and an en dash on 64000; same for `BD's Mongolian
+  Grill`, `Merriman's`, `Zodiac at Neiman Marcus` and `Big Daddy's`.
+- **Neighborhood alone does not disambiguate.** On 9 of the 51 same-city
   clusters, two locations share the same `neighborhood`: Fleming's Steakhouse
   Scottsdale (40036 / 39919, both `Scottsdale`), The Herb Box Scottsdale (99511 /
   99508), McCormick & Schmick's Pittsburgh (6794 / 13990, both `Downtown`),
@@ -183,6 +196,8 @@ city                string
 state               string
 postal_code         string
 location_label      string          # computed display value, see fallback chain
+location_label_ambiguous boolean     # true when a same-city chain sibling shares the
+                                     # identical label, so distance must complete it
 market              string          # raw `area` value, opaque facet
 market_state        string | null   # only when `area` contains " / "
 _geoloc             { lat, lng }
