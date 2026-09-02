@@ -263,13 +263,39 @@ the results are never unexplained.
 
 ## 6. Stack and repo layout
 
-Front end: **Vite + React InstantSearch**. The starter shipped with the dataset
-is pinned to Node 9 and `parcel-bundler@1.9.7`, both unmaintained and carrying
-critical transitive advisories, and it exposes only the low-level search client —
-rebuilding autocomplete, refinement, geo and sorting widgets by hand would cost
-days that belong to the experience itself. From the original bundle we keep the
-dataset, `resources/current-experience.png` as a reference for the experience
-being replaced, and selected styling cues.
+Front end: **Vite + React InstantSearch, with Autocomplete.js for the search
+box.** This is Algolia's documented reference integration for a header search
+box with instant suggestions sitting above a results experience — the two
+personas map onto it directly, and it is worth more than a bespoke structure
+because it is the pattern a reviewer already knows.
+
+The starter shipped with the dataset is pinned to Node 9 and
+`parcel-bundler@1.9.7`, both unmaintained and carrying critical transitive
+advisories, and it exposes only the low-level search client — rebuilding
+autocomplete, refinement, geo and sorting widgets by hand would cost days that
+belong to the experience itself. From the original bundle we keep the dataset,
+`resources/current-experience.png` as a reference for the experience being
+replaced, and selected styling cues.
+
+### One application, two search contexts
+
+This is a single app with a single search box, not two experiences the user has
+to choose between. The same box serves both personas, which is the point of the
+demo:
+
+- **The header box and its dropdown** — Autocomplete.js. Persona 1: known-item.
+  Text relevance leads, few hits, distance shown for disambiguation.
+- **The page below** — InstantSearch. Persona 2: discovery. Curated entry points
+  on an empty query, then results with facets, sorts and geo-aware ranking.
+
+Selecting a suggestion in the dropdown goes straight to the restaurant;
+submitting the query lands in the results grid.
+
+The two contexts **must not share search parameters** — geo weighting,
+`aroundRadius`, `hitsPerPage` and returned attributes differ per section 5.
+Using two libraries makes that separation structural rather than a convention
+to police. Declare both parameter sets side by side in `src/searchParams.js`,
+with the reasoning inline, so they can be compared at a glance.
 
 ```
 CLAUDE.md
@@ -295,14 +321,20 @@ data/
   transform-report.md        # generated: counts, conflicts resolved, mapping applied
 src/
   main.jsx                   # Vite/React entry
-  App.jsx
+  App.jsx                    # the <InstantSearch> tree
   searchClient.js            # single Algolia client, search-only key
-  known-item/                # persona 1 surface: autocomplete
-  discovery/                 # persona 2 surface: browse, facets, sorts, geo
-  insights/                  # queryID propagation, click + conversion events
-  lib/                       # formatters (location_label, distance, price)
+  searchParams.js            # both parameter sets, declared side by side
+  insights.js                # queryID propagation, click + conversion events
+  autocomplete/              # Autocomplete.js instance and its sources
+  components/                # custom InstantSearch widgets (Hit, Facets, SortBy, …)
+  lib/                       # shared formatters (location_label, distance, price)
 public/                      # static assets served as-is
 ```
+
+Flat `components/` is the InstantSearch convention — one component per custom
+widget. Resist inventing a deeper taxonomy: the only separation that carries
+meaning here is autocomplete versus InstantSearch, and the libraries already
+provide it.
 
 `resources/` is source material and is never written to. Generated artefacts go
 to `data/` only; the transform reads from `resources/dataset/` and writes to
@@ -345,6 +377,13 @@ are the numbers that justify every decision in section 3.
 - Keep `main` deployable and deploy from the first commit rather than at the
   end — environment variables, build config and asset paths fail in ways local
   development hides.
+- **Node 24 is required.** The toolchain (Vite, `@vitejs/plugin-react`, oxlint)
+  demands `^20.19 || >=22.12`, and the Node 20 line went end-of-life on
+  2026-04-30. Run `nvm use` before `npm run dev` or `npm run build` — `.nvmrc`
+  pins 24 for local shells. Alignment with CI comes from `engines.node`, set to
+  `"24.x"`: Vercel takes its Node version from Project Settings and
+  `engines.node` in `package.json` is the only repo-side override — it does not
+  read `.nvmrc` (Netlify does).
 
 ## 8. Working conventions
 
