@@ -298,16 +298,25 @@ nothing to store and nothing to pre-sort. Distance ordering is produced by sendi
 sort control therefore offers the primary index as its geo-aware default plus the
 three replicas above.
 
-**Correction — `ranking` must be declared, not defaulted.** Algolia's default order
-puts `geo` second, ahead of `words`, `attribute` and `exact`, so any query carrying
-`aroundLatLng` ranks proximity above text relevance — the exact failure the geo
-strategy below is written to prevent. `scripts/settings.json` demotes `geo` below
-`exact`. The discovery journey still gets geo-led ordering because it sends
-`aroundLatLng` with coarse `aroundPrecision` buckets, which collapses distance into
-wide tiers that `customRanking` then orders by `popularity_score`; the known-item
-journey sends no geo parameter at all and computes distance client-side from
-`_geoloc` for display. Leaving `ranking` implicit would have hidden this in a default
-nobody reviews.
+**`ranking` must be declared, not defaulted.** Algolia's default order puts `geo`
+second, ahead of `words`, `attribute` and `exact`, so any query carrying `aroundLatLng`
+ranks proximity above text relevance. `scripts/settings.json` currently demotes `geo`
+below `exact`, and declaring the order explicitly is right regardless — leaving it
+implicit hides a consequential choice in a default nobody reviews.
+
+**The demotion itself is measured wrong, and is an open question.** The original
+justification claimed the discovery journey would still get geo-led ordering from coarse
+`aroundPrecision` buckets. It does not: with `geo` at position 7 it is consulted only
+among records tied on all six preceding criteria, which never happens on a broad query.
+Measured on `italian` from Denver, the first Denver record ranks **89th of 895**, and
+`aroundPrecision` changes nothing — only a finite `aroundRadius` puts Denver first, and
+that filters rather than ranks. See `test-queries.md` G3.
+
+The known-item journey is protected by the parameter separation, not by the demotion: it
+sends no geo parameter at all and computes distance client-side from `_geoloc` for
+display, so the `geo` criterion is inert there whatever its position. Restoring the
+default order, or adding a geo-first standard replica for discovery, are both live
+options — resolved in `test-queries.md` before either is applied.
 
 ### Typo tolerance cuts both ways — measured
 
