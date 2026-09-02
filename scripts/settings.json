@@ -1,0 +1,136 @@
+{
+  "_about": {
+    "purpose": "Versioned Algolia index configuration, pushed by scripts/2-index.js. Settings are never edited in the dashboard: the configuration is part of the codebase, it gets reviewed in diffs, and a dashboard-only change is a change nobody can trace (CLAUDE.md §5).",
+    "contract_for_2-index.js": [
+      "Push `settings` verbatim to the primary index as the setSettings payload. It contains only real Algolia setting keys — nothing here needs filtering.",
+      "Derive the primary's `replicas` array from the `replicas` list below: each entry becomes `virtual(<indexName>_<suffix>)` for type `virtual`, or `<indexName>_<suffix>` for type `standard`. It is deliberately absent from `settings` so the replica list has exactly one source of truth.",
+      "Set the primary settings including the derived `replicas` FIRST, then push each replica's own `settings`. Algolia rejects settings on a replica that does not exist yet.",
+      "Keys prefixed with `_` are documentation and must never be sent to Algolia.",
+      "`_geoloc` needs no declaration — Algolia indexes it for geo search automatically."
+    ],
+    "not_implementable_as_specified": {
+      "distance_replica": "CLAUDE.md §5 lists a `distance` virtual replica. A replica cannot sort by distance: a replica's order comes from stored attributes, and distance depends on the user's position at query time. Nothing to store, nothing to pre-sort. Distance ordering is produced instead by sending `aroundLatLng` to the primary index, where the `geo` ranking criterion applies — which is exactly what the discovery parameter set does. The sort control therefore offers the primary index as its geo-aware default plus the three replicas below, and no `distance` replica is created."
+    },
+    "missing_from_the_repo_layout": {
+      "synonyms": "Persona 1 requires 'synonyms and alternative spellings' (CLAUDE.md §2), and test-queries.md K12 `pappas brothers` cannot pass without one — the edit distance from `Bros.` to `brothers` is 3, beyond any typo setting. Synonyms are a separate Algolia resource, not an index setting, so they do not belong in this file and CLAUDE.md §6 lists no file for them. They need `scripts/synonyms.json`, pushed by 2-index.js alongside these settings, for the same reason settings live in the repo: a dashboard-only synonym is untraceable."
+    }
+  },
+  "_rationale": {
+    "searchableAttributes": "Attribute order is the main lever for persona 1: a query matching a restaurant name must beat a query matching a cuisine or a neighborhood, always. `unordered(name)` because word position inside a restaurant name carries no meaning — `Ristorante Cavour` and `Cavour Ristorante` are the same intent. This order is what makes test-queries.md A2 (`prime` finds 117067, whose own cuisine is Mexican) and A7 (`bistro` finds 100624) resolvable at all. `location_label` and `market_state` are absent on purpose: the first is a computed display string that duplicates neighborhood and city, the second is misleading (only 922 of 2,897 derived values are actual state names).",
+    "attributesForFaceting": "`searchable(cuisine)` because 37 primary values need a searchable facet list rather than a scroll. `cuisine_tags` is the second-level refinement that makes the American merge defensible — without it, one facet value covers 35% of the corpus with no way to narrow. `filterOnly(is_chain)` because nobody browses a boolean, but the UI may need to scope to chains.",
+    "ranking": "Declared explicitly rather than left to the default, because the default is invisible in a diff and the default is wrong here. Algolia's default puts `geo` second, ahead of `words`, `attribute` and `exact` — so any query carrying `aroundLatLng` ranks proximity above text relevance. That is the single easiest way to make search feel worse than the experience it replaces (CLAUDE.md §5): a user searching `nobu` from Denver would get the nearest bistro. `geo` is therefore demoted below `exact`. The discovery context still gets geo-led ordering because it sends `aroundLatLng` with coarse `aroundPrecision` buckets, which collapses distance into wide tiers that `customRanking` then orders by popularity — the behaviour §5 asks for — while the known-item context sends no geo parameter at all and computes distance client-side from `_geoloc` for display only.",
+    "customRanking": "`desc(popularity_score)` before `desc(reviews_count)`. popularity_score is a Bayesian average, not raw stars: 21 records hold a 5.0 and 18 of those have fewer than 50 reviews, so ranking on `desc(stars_count)` would fill the first screen from that pool. The `reviews_count` tie-break separates records whose smoothed scores collide.",
+    "typoTolerance": "Thresholds carried over from §5. They are a measured compromise, not a default: 59 pairs of distinct restaurant names sit at edit distance 1, so tolerance can turn an exact known-item query into the wrong restaurant, while 36 names fall under the 4-character floor and get no tolerance at all. Do not move these without a test-queries.md case naming the pair the change fixes and the pair it puts at risk.",
+    "disableTypoToleranceOnWords": "Deliberately empty. This is the intended remedy for test-queries.md A3/A4 — `naya` (148411) against `kaya` (79378), both 4-character names in Pittsburgh, one character apart, so neither the typo floor nor geo separates them. It is left unset because the case has not been run yet: pre-tuning a setting to make a test pass before observing the failure is exactly what CLAUDE.md §8 forbids.",
+    "queryType": "`prefixLast` — the last word is a prefix, earlier words must match fully. Required by the autocomplete journey, where the user is still typing: `melting po` must reach The Melting Pot. `prefixAll` would make every word a prefix and let `rye` match `Ryeland`, which directly harms A1.",
+    "removeWordsIfNoResults": "`lastWords` as specified, but flagged: test-queries.md O2 shows it actively harming. `olive garden` is absent from the corpus, and dropping the last word leaves `olive`, which matches six unrelated restaurants presented as answers. O3 `shake shack` is safe under the same setting because `shake` matches nothing. The same setting is therefore harmful on one query and harmless on another, which is why `allOptional` gets evaluated against those two cases rather than chosen by preference.",
+    "ignorePlurals": "Set to false, against the obvious instinct. Plural folding would help cuisine queries (`steakhouses` reaching the 486 Steakhouse records) but it collides head-on with persona 1: the corpus contains `Cata` (148687) and `Catas` (72754), `Maya` (23845) and `Mayas` (77980) as distinct restaurants. Conflating a known-item query between two real restaurants is a worse failure than missing a plural on a cuisine term, and the cuisine case can be recovered per-context in searchParams.js or with a synonym.",
+    "removeStopWords": "False. Stop words carry signal inside restaurant names — `The Smith` (19258, 98185), `Left Bank` (65758), `da Umberto` (108874). Stripping them makes distinct names collide.",
+    "attributesToHighlight": "Highlighting is load-bearing rather than decorative here: with typo tolerance active, the user needs to see *why* a result matched. A query for `naya` returning `Kaya` is only comprehensible if the matched characters are marked.",
+    "numericAttributesForFiltering": "Restricted to the three attributes any journey actually filters on. popularity_score is absent on purpose — it is a ranking signal, never a user-facing filter, and exposing it invites filtering on a number the user cannot interpret.",
+    "concatenated_queries": "test-queries.md K13–K16 (`ilforno`, `leftbank`, `roaringfork`, `montblanc`) are not addressed by any setting in this file. Algolia's `decompoundedAttributes` covers German, Dutch, Finnish, Norwegian and Swedish, not English, so it does not apply. Whether the engine's built-in word splitting and concatenation is enough for these four names is an empirical question those cases exist to answer; if it is not, the fix is synonyms, not a setting.",
+    "thresholds": "minWordSizefor1Typo, minWordSizefor2Typos and allowTyposOnNumericTokens are the numeric half of the typoTolerance decision above. allowTyposOnNumericTokens is false because 257 names contain a digit — 31141 `12 Baltimore`, 92827 `53 by the Sea`, 90436 `247 Craven` — and a tolerated digit typo turns one address or house number into another.",
+    "maxValuesPerFacet": "Left at the Algolia default of 100, declared explicitly so it appears in a diff. It is a real ceiling here: `neighborhood` and `city` both exceed 100 distinct values, so a facet list on either is truncated. Acceptable because neither is browsed as a flat list — city is reached through `market`, and neighborhood only ever appears scoped to a city.",
+    "paginationLimitedTo": "Left at the default of 1000. No journey pages past the first few screens, and lowering it would break nothing while raising it costs performance for pages nobody reaches."
+  },
+  "settings": {
+    "searchableAttributes": [
+      "unordered(name)",
+      "chain_name",
+      "unordered(cuisine,cuisine_tags)",
+      "unordered(neighborhood,city,market)",
+      "address"
+    ],
+    "attributesForFaceting": [
+      "searchable(cuisine)",
+      "cuisine_tags",
+      "dining_style",
+      "price_range",
+      "price_tier",
+      "occasions",
+      "city",
+      "market",
+      "neighborhood",
+      "filterOnly(is_chain)"
+    ],
+    "ranking": [
+      "typo",
+      "words",
+      "filters",
+      "proximity",
+      "attribute",
+      "exact",
+      "geo",
+      "custom"
+    ],
+    "customRanking": [
+      "desc(popularity_score)",
+      "desc(reviews_count)"
+    ],
+    "typoTolerance": true,
+    "minWordSizefor1Typo": 4,
+    "minWordSizefor2Typos": 8,
+    "allowTyposOnNumericTokens": false,
+    "disableTypoToleranceOnWords": [],
+    "queryType": "prefixLast",
+    "removeWordsIfNoResults": "lastWords",
+    "ignorePlurals": false,
+    "removeStopWords": false,
+    "attributesToHighlight": [
+      "name",
+      "chain_name",
+      "cuisine",
+      "cuisine_tags",
+      "neighborhood",
+      "city"
+    ],
+    "numericAttributesForFiltering": [
+      "price_tier",
+      "stars_count",
+      "reviews_count"
+    ],
+    "maxValuesPerFacet": 100,
+    "paginationLimitedTo": 1000
+  },
+  "replicas": [
+    {
+      "suffix": "rating_desc",
+      "type": "virtual",
+      "label": "Top rated",
+      "rationale": "Sorts on popularity_score, not stars_count. A raw-rating sort was rejected: 154318 `Ellen's Cafe` holds a 5.0 on a single review, and 18 of the 21 five-star records have fewer than 50 reviews, so `desc(stars_count)` would hand the first page to the thinnest evidence in the corpus under a label the user reads as a quality guarantee. The Bayesian average is what makes the label honest. Distinct from the primary because here popularity is applied as the sort criterion rather than as a tie-break after text relevance.",
+      "settings": {
+        "customRanking": [
+          "desc(popularity_score)",
+          "desc(reviews_count)"
+        ],
+        "relevancyStrictness": 50
+      }
+    },
+    {
+      "suffix": "price_asc",
+      "type": "virtual",
+      "label": "Price: low to high",
+      "rationale": "price_tier is derived from the price_range label, never from the JSON price int, which contradicts it on 220 records. Only 3 tiers exist, so popularity_score does the real ordering inside each tier — without that second criterion a third of the corpus would be returned in arbitrary order.",
+      "settings": {
+        "customRanking": [
+          "asc(price_tier)",
+          "desc(popularity_score)"
+        ],
+        "relevancyStrictness": 50
+      }
+    },
+    {
+      "suffix": "price_desc",
+      "type": "virtual",
+      "label": "Price: high to low",
+      "rationale": "Mirror of price_asc. Kept as a separate replica rather than a UI reversal because virtual replicas cannot be read backwards.",
+      "settings": {
+        "customRanking": [
+          "desc(price_tier)",
+          "desc(popularity_score)"
+        ],
+        "relevancyStrictness": 50
+      }
+    }
+  ]
+}

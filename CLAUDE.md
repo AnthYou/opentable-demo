@@ -282,13 +282,32 @@ typoTolerance: minWordSizefor1Typo 4, minWordSizefor2Typos 8,
                allowTyposOnNumericTokens false
 queryType: "prefixLast"
 removeWordsIfNoResults: "lastWords"   # evaluate "allOptional" on discovery
-replicas (virtual): rating_desc, price_asc, price_desc, distance
+replicas (virtual): rating_desc, price_asc, price_desc
+ranking: geo demoted below exact — see below
 ```
 
 Attribute order in `searchableAttributes` is the main lever for persona 1: a
 query matching a restaurant name must beat a query matching a cuisine or a
 neighborhood, always. `unordered()` on `name` because word position inside a
 restaurant name carries no meaning.
+
+**Correction — there is no `distance` replica.** A replica's order comes from stored
+attributes, and distance depends on the user's position at query time, so there is
+nothing to store and nothing to pre-sort. Distance ordering is produced by sending
+`aroundLatLng` to the primary index, where the `geo` ranking criterion applies. The
+sort control therefore offers the primary index as its geo-aware default plus the
+three replicas above.
+
+**Correction — `ranking` must be declared, not defaulted.** Algolia's default order
+puts `geo` second, ahead of `words`, `attribute` and `exact`, so any query carrying
+`aroundLatLng` ranks proximity above text relevance — the exact failure the geo
+strategy below is written to prevent. `scripts/settings.json` demotes `geo` below
+`exact`. The discovery journey still gets geo-led ordering because it sends
+`aroundLatLng` with coarse `aroundPrecision` buckets, which collapses distance into
+wide tiers that `customRanking` then orders by `popularity_score`; the known-item
+journey sends no geo parameter at all and computes distance client-side from
+`_geoloc` for display. Leaving `ranking` implicit would have hidden this in a default
+nobody reviews.
 
 ### Typo tolerance cuts both ways — measured
 
@@ -387,6 +406,7 @@ scripts/
   2-index.js                 # push records + push settings.json
   cuisine-taxonomy.json      # hand-reviewed food_type -> cuisine mapping
   settings.json              # versioned index configuration
+  synonyms.json              # abbreviation + alternative-spelling synonyms
 data/
   records.json               # generated, gitignored
   enrichment-cache.json      # generated, gitignored

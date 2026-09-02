@@ -65,8 +65,11 @@ Persona 1's headline pain: "restaurant names are hard to spell or remember".
 | K16 | `montblanc` | AC+IS | 60130 `Mont Blanc` (New York) rank 1. | untested |
 
 614 two-short-word names carry this risk (`data/exploration.md` A1.6). These four are
-the check; if decompounding is not configured, all four fail together and the fix is
-one setting, not four.
+the check. Correction to an earlier assumption: **no index setting addresses this.**
+Algolia's `decompoundedAttributes` covers German, Dutch, Finnish, Norwegian and
+Swedish, not English, so it does not apply to this corpus. These cases exist to
+establish whether the engine's built-in word splitting and concatenation is enough for
+these four names; if it is not, the remedy is synonyms, not a setting.
 
 ## 4. Partial name
 
