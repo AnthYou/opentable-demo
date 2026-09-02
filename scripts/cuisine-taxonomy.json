@@ -1,0 +1,162 @@
+{
+  "_about": {
+    "purpose": "Hand-reviewed mapping of the 114 raw `food_type` values in resources/dataset/restaurants_info.csv onto one primary `cuisine` plus secondary `cuisine_tags`. Read by scripts/1-transform.js. Never generated inline — see CLAUDE.md section 3.",
+    "source_values": 114,
+    "source_records": 5000,
+    "primary_cuisines": 37,
+    "rules": [
+      "One primary `cuisine` per record, always non-null. It is the first-level facet.",
+      "`cuisine_tags` is the second level. Every distinction lost by collapsing a raw value into a broader primary is preserved as a tag, so nothing becomes unsearchable. Tags are additive and may repeat across primaries.",
+      "A raw value is folded into a broader primary when it is (a) a strict sub-variety of it (Sicilian -> Italian, South Indian -> Indian, Dim Sum -> Chinese), (b) a preparation or format rather than an origin (Tapas, Pizzeria, Hibachi, Bistro), or (c) a venue or dietary label carrying no origin at all (Wine Bar, Brewery, Kosher, Vegan).",
+      "A raw value keeps its own primary when a diner would plausibly pick it from a facet list and it is not a sub-variety of another primary in this file.",
+      "Assignments for values with 5 or fewer records were made by reading the actual restaurant names, not by inferring from the label. Where that reading contradicted the obvious guess, a `note` records it."
+    ],
+    "known_compromises": [
+      "`American` absorbs Contemporary American, Californian, Northwest, Comfort Food and Gastro Pub and so covers roughly a third of the corpus. That is deliberate: CLAUDE.md section 3 reports users cannot guess which of the competing American buckets a restaurant landed in, and a single predictable bucket refined by `cuisine_tags` beats four overlapping ones. It only works if the UI exposes cuisine_tags as a second-level refinement inside American.",
+      "Dietary labels (Kosher, Vegan, Vegetarian) are modelled as tags on a best-effort cuisine. They deserve a dedicated `dietary` attribute, but 5 records cannot support a facet and food_type is the only signal available.",
+      "`Bar & Lounge` is a venue primary, not a cuisine. The 12 records behind it carry no origin information whatsoever (one is a comedy club). Leaving them under a real cuisine would be a fabrication."
+    ]
+  },
+
+  "mapping": {
+    "American": { "cuisine": "American", "cuisine_tags": ["Traditional"], "note": "`Traditional` is added so the second-level refinement inside American partitions cleanly against `Contemporary` (865 vs 745) instead of leaving half the bucket reachable only by default. The distinction is present in the source data — this labels the non-contemporary side, it does not invent it." },
+    "Contemporary American": { "cuisine": "American", "cuisine_tags": ["Contemporary"] },
+    "Californian": { "cuisine": "American", "cuisine_tags": ["Californian", "Contemporary", "Farm to Table"] },
+    "Northwest": { "cuisine": "American", "cuisine_tags": ["Pacific Northwest", "Farm to Table"] },
+    "Comfort Food": { "cuisine": "American", "cuisine_tags": ["Comfort Food"] },
+    "Gastro Pub": { "cuisine": "American", "cuisine_tags": ["Gastropub", "Pub"] },
+    "Burgers": { "cuisine": "American", "cuisine_tags": ["Burgers"] },
+    "Breakfast": { "cuisine": "American", "cuisine_tags": ["Breakfast", "Brunch"] },
+    "Organic": { "cuisine": "American", "cuisine_tags": ["Organic", "Farm to Table"] },
+    "Wild Game": { "cuisine": "American", "cuisine_tags": ["Wild Game"], "note": "92713 The Lion's Share, San Diego — American game menu." },
+    "Vegan": { "cuisine": "American", "cuisine_tags": ["Vegan", "Vegetarian", "Plant Based"], "note": "76453 Axe, Venice — Californian vegan. Dietary, not an origin; see known_compromises." },
+    "Vegetarian": { "cuisine": "American", "cuisine_tags": ["Vegetarian"], "note": "68152 Natural Selection, Portland. Dietary, not an origin." },
+
+    "Southern": { "cuisine": "Southern", "cuisine_tags": ["Southern"] },
+    "Contemporary Southern": { "cuisine": "Southern", "cuisine_tags": ["Southern", "Contemporary"] },
+    "Low Country": { "cuisine": "Southern", "cuisine_tags": ["Low Country", "Southern"], "note": "103636 Restaurant Fourteen Seventy Two, Denver — Low Country menu outside the Carolinas." },
+
+    "Creole / Cajun / Southern": { "cuisine": "Cajun & Creole", "cuisine_tags": ["Creole", "Cajun", "Southern"] },
+    "Creole": { "cuisine": "Cajun & Creole", "cuisine_tags": ["Creole"] },
+    "Cajun": { "cuisine": "Cajun & Creole", "cuisine_tags": ["Cajun"] },
+
+    "Steakhouse": { "cuisine": "Steakhouse", "cuisine_tags": ["Steakhouse"] },
+    "Steak": { "cuisine": "Steakhouse", "cuisine_tags": ["Steakhouse"], "note": "Merged with Steakhouse per CLAUDE.md section 3 — 123 vs 328 records competing for one intent." },
+    "Prime Rib": { "cuisine": "Steakhouse", "cuisine_tags": ["Steakhouse", "Prime Rib"], "note": "10996 Lawry's The Prime Rib, 107593 Bully's East — both steakhouses." },
+    "Brazilian Steakhouse": { "cuisine": "Steakhouse", "cuisine_tags": ["Churrascaria", "Brazilian", "Latin American", "Steakhouse"], "note": "Arguable. Primary follows the dining format and price point, which is what drives the booking; `Brazilian` is kept as a tag so an origin-led query still reaches these 33 records. The alternative — primary Brazilian, tag Steakhouse — is equally defensible." },
+
+    "Seafood": { "cuisine": "Seafood", "cuisine_tags": ["Seafood"] },
+
+    "Italian": { "cuisine": "Italian", "cuisine_tags": ["Traditional"], "note": "Same reasoning as the raw `American` value: partitions Italian against `Contemporary` (850 vs 19) rather than leaving 96% of the bucket untagged." },
+    "Contemporary Italian": { "cuisine": "Italian", "cuisine_tags": ["Contemporary"] },
+    "Sicilian": { "cuisine": "Italian", "cuisine_tags": ["Sicilian", "Regional Italian"], "note": "144973 Strano! Sicilian Kitchen & Bar, Memphis." },
+    "Pizzeria": { "cuisine": "Italian", "cuisine_tags": ["Pizza", "Pizzeria"], "note": "Format, not an origin. `Pizza` as a tag keeps the intent searchable without a 20-record primary." },
+
+    "French": { "cuisine": "French", "cuisine_tags": [] },
+    "Contemporary French": { "cuisine": "French", "cuisine_tags": ["Contemporary"] },
+    "Contemporary French / American": { "cuisine": "French", "cuisine_tags": ["Contemporary", "American", "French American"] },
+    "French American": { "cuisine": "French", "cuisine_tags": ["American", "French American"] },
+    "Provencal": { "cuisine": "French", "cuisine_tags": ["Provencal", "Regional French", "Mediterranean"], "note": "3981 Mateo, 95263 Ba, 4948 L'Escale, 33067 Le Gigot — all French." },
+    "Bistro": { "cuisine": "French", "cuisine_tags": ["Bistro"], "note": "5014 Mockingbird Bistro, 10105 7 on Fulton, 72718 Acme, 138955 Carefree Bistro — French-leaning bistros. 100624 is a separate problem: a restaurant literally named `Bistro`, see the name/cuisine collisions in the analysis." },
+
+    "Japanese": { "cuisine": "Japanese", "cuisine_tags": [] },
+    "Sushi": { "cuisine": "Japanese", "cuisine_tags": ["Sushi"] },
+    "Hibachi": { "cuisine": "Japanese", "cuisine_tags": ["Hibachi", "Teppanyaki"], "note": "108670 Volcano Asian Cuisine, Centennial." },
+
+    "Chinese": { "cuisine": "Chinese", "cuisine_tags": [] },
+    "Dim Sum": { "cuisine": "Chinese", "cuisine_tags": ["Dim Sum", "Cantonese"], "note": "149527 / 149530 Yank Sing, both San Francisco — same brand, two sites." },
+
+    "Thai": { "cuisine": "Thai", "cuisine_tags": [] },
+    "Korean": { "cuisine": "Korean", "cuisine_tags": [] },
+
+    "Asian": { "cuisine": "Asian", "cuisine_tags": [] },
+    "Pan-Asian": { "cuisine": "Asian", "cuisine_tags": ["Pan-Asian"] },
+    "Contemporary Asian": { "cuisine": "Asian", "cuisine_tags": ["Contemporary", "Pan-Asian"] },
+    "Southeast Asian": { "cuisine": "Asian", "cuisine_tags": ["Southeast Asian"], "note": "103108 Pig and Khao (Filipino), 110548 Khe-Yo (Laotian), 55810 Shiok Singapore Kitchen — genuinely pan-regional, so the umbrella is accurate here." },
+    "Vietnamese": { "cuisine": "Asian", "cuisine_tags": ["Vietnamese", "Southeast Asian"], "note": "22558 Indochine, 2527 Three Seasons. Folded for facet size; the tag keeps `vietnamese` searchable." },
+    "Filipino": { "cuisine": "Asian", "cuisine_tags": ["Filipino", "Southeast Asian"], "note": "146230 Milkfish, 110410 MAX'S RESTAURANT (Cuisine of the Philippines)." },
+    "Burmese": { "cuisine": "Asian", "cuisine_tags": ["Burmese", "Southeast Asian"], "note": "150346 Burma Ruby, Palo Alto." },
+
+    "Indian": { "cuisine": "Indian", "cuisine_tags": [] },
+    "Contemporary Indian": { "cuisine": "Indian", "cuisine_tags": ["Contemporary"] },
+    "South Indian": { "cuisine": "Indian", "cuisine_tags": ["South Indian", "Regional Indian"], "note": "81913 Cholanad, Chapel Hill." },
+
+    "Mexican": { "cuisine": "Mexican", "cuisine_tags": [] },
+    "Mexican / Southwestern": { "cuisine": "Mexican", "cuisine_tags": ["Southwestern"] },
+    "Contemporary Mexican": { "cuisine": "Mexican", "cuisine_tags": ["Contemporary"] },
+    "Traditional Mexican": { "cuisine": "Mexican", "cuisine_tags": ["Traditional"], "note": "103513 La Casa del Caballo, Bellaire." },
+    "Regional Mexican": { "cuisine": "Mexican", "cuisine_tags": ["Regional Mexican"], "note": "112546 Casa Mezcal, Lower East Side." },
+    "Tex-Mex": { "cuisine": "Mexican", "cuisine_tags": ["Tex-Mex", "Southwestern"], "note": "All 5 records are Cyclone Anaya's, the five-site Houston cluster (145369, 145366, 151276, 145375, 145381)." },
+
+    "Southwest": { "cuisine": "Southwestern", "cuisine_tags": ["Southwestern"] },
+
+    "Mediterranean": { "cuisine": "Mediterranean", "cuisine_tags": [] },
+    "Greek": { "cuisine": "Greek", "cuisine_tags": ["Mediterranean"] },
+    "Turkish": { "cuisine": "Turkish", "cuisine_tags": ["Mediterranean"] },
+
+    "Spanish": { "cuisine": "Spanish", "cuisine_tags": [] },
+    "Tapas / Small Plates": { "cuisine": "Spanish", "cuisine_tags": ["Tapas", "Small Plates"], "note": "Format rather than origin. Assigning Spanish is right for the majority but will mislabel any non-Spanish small-plates restaurant in these 42 records; the tags are what a query should match." },
+    "Basque": { "cuisine": "Spanish", "cuisine_tags": ["Basque", "Regional Spanish"], "note": "113746 Txikito (Chelsea) is Spanish Basque; 150715 Eleven (Ashland) is one half of the Eleven / ELEVEN duplicate-name pair." },
+
+    "Latin American": { "cuisine": "Latin American", "cuisine_tags": [] },
+    "Latin / Spanish": { "cuisine": "Latin American", "cuisine_tags": ["Spanish"] },
+    "South American": { "cuisine": "Latin American", "cuisine_tags": ["South American"], "note": "141961 Sal y Pimienta, 107464 Palo Santo, 110077 La Brasa Peruvian Kitchen." },
+    "Argentinean": { "cuisine": "Latin American", "cuisine_tags": ["Argentinean", "Steakhouse", "Parrilla", "South American"], "note": "77779 Pampas Argentinas Steakhouse, 94117 Gaucho Grill, 76903 Estancia 460 — grill-led. Tagged Steakhouse so they surface alongside the format." },
+    "Brazilian": { "cuisine": "Brazilian", "cuisine_tags": ["South American", "Latin American"], "note": "152104 Botequim, 35521 Berimbau Do Brasil, 34525 SOB's, 98671 Green Forest, 148204 Minas — general Brazilian, not churrascarias. Kept separate from Brazilian Steakhouse on purpose." },
+    "Peruvian": { "cuisine": "Peruvian", "cuisine_tags": ["South American", "Latin American"] },
+    "Cuban": { "cuisine": "Cuban", "cuisine_tags": ["Caribbean", "Latin American"] },
+    "Caribbean": { "cuisine": "Caribbean", "cuisine_tags": ["Latin American"] },
+    "Puerto Rican": { "cuisine": "Caribbean", "cuisine_tags": ["Puerto Rican", "Latin American"], "note": "98413 Salsa Puerto Rican and Latin Cuisine, 82576 Sofrito-Midtown, 81022 Sazon." },
+
+    "Middle Eastern": { "cuisine": "Middle Eastern", "cuisine_tags": [] },
+    "Lebanese": { "cuisine": "Middle Eastern", "cuisine_tags": ["Lebanese"], "note": "38155 Al Bustan, 118177 Au Za'atar." },
+    "Persian": { "cuisine": "Middle Eastern", "cuisine_tags": ["Persian", "Iranian"], "note": "53602 Pars Cuisine, 88468 Marjan, 42829 Persepolis, 51331 Persian Room, 44683 Bandar." },
+    "Syrian": { "cuisine": "Middle Eastern", "cuisine_tags": ["Syrian"], "note": "148411 Naya, Pittsburgh — also one half of the Kaya / Naya same-city edit-distance-1 pair." },
+    "Afghan": { "cuisine": "Middle Eastern", "cuisine_tags": ["Afghan", "Central Asian"], "note": "91891 Afghan Kebab House II, 100099 Afghanistan Khyber Pass." },
+
+    "African": { "cuisine": "African", "cuisine_tags": [] },
+    "South African": { "cuisine": "African", "cuisine_tags": ["South African"], "note": "139402 The Springbok, 34069 Peli Peli." },
+    "Ethiopian": { "cuisine": "African", "cuisine_tags": ["Ethiopian", "East African"], "note": "139840 Lucy Ethiopian, 41884 Mesob Ethiopian." },
+    "Moroccan": { "cuisine": "African", "cuisine_tags": ["Moroccan", "North African", "Mediterranean"], "note": "124666 Kan Zaman, 70969 Babylon, 3174 Aziza. Babylon also collides with the Babylon neighborhood/city value." },
+
+    "Continental": { "cuisine": "European", "cuisine_tags": ["Continental"] },
+    "European": { "cuisine": "European", "cuisine_tags": [] },
+    "Contemporary European": { "cuisine": "European", "cuisine_tags": ["Contemporary"] },
+    "Modern European": { "cuisine": "European", "cuisine_tags": ["Contemporary", "Modern European"] },
+    "Eastern European": { "cuisine": "European", "cuisine_tags": ["Eastern European", "Ukrainian"], "note": "108904 Cafe Glechik, Sheepshead Bay — Ukrainian." },
+    "Austrian": { "cuisine": "European", "cuisine_tags": ["Austrian", "Alpine"], "note": "118699 Edi and The Wolf, East Village." },
+    "Swiss": { "cuisine": "European", "cuisine_tags": ["Swiss", "Alpine"], "note": "22045 Alpenrose at the Alpenhof Lodge, 60130 Mont Blanc, 74152 Cafe Select." },
+    "Scandinavian": { "cuisine": "European", "cuisine_tags": ["Scandinavian", "Nordic"], "note": "151336 Ragnars, 118390 Luksus." },
+    "Russian": { "cuisine": "European", "cuisine_tags": ["Russian", "Eastern European"], "note": "72853 Onegin, 55393 Russian Samovar." },
+
+    "German": { "cuisine": "German", "cuisine_tags": ["European"] },
+    "Belgian": { "cuisine": "Belgian", "cuisine_tags": ["European"] },
+    "Irish": { "cuisine": "Irish", "cuisine_tags": ["European", "Pub"] },
+    "Portuguese": { "cuisine": "Portuguese", "cuisine_tags": ["European", "Mediterranean"] },
+
+    "British": { "cuisine": "British", "cuisine_tags": ["European"] },
+    "English": { "cuisine": "British", "cuisine_tags": ["English", "European"], "note": "83164 Cock and Bull is a pub; 44854 Afternoon Tea - The Phoenician overlaps the Afternoon Tea value below, which is why both land on British." },
+    "Afternoon Tea": { "cuisine": "British", "cuisine_tags": ["Afternoon Tea", "Tea Room"], "note": "3461 Brown Palace, 33664 Briarwood Inn, 80698 The Veranda at the Kahala, 96886 Lady Mendls — hotel tea service. Format, not an origin; British is the closest honest primary." },
+
+    "Global, International": { "cuisine": "International", "cuisine_tags": ["Global"] },
+    "International": { "cuisine": "International", "cuisine_tags": [] },
+    "Fusion / Eclectic": { "cuisine": "International", "cuisine_tags": ["Fusion", "Eclectic"] },
+    "Australian": { "cuisine": "International", "cuisine_tags": ["Australian"], "note": "109780 Bills Sydney, Waikiki. Folded for facet size; the tag keeps it searchable." },
+    "Modern Australian": { "cuisine": "International", "cuisine_tags": ["Australian", "Contemporary"], "note": "114505 Flinders Lane, East Village." },
+    "Kosher": { "cuisine": "International", "cuisine_tags": ["Kosher"], "note": "116239 SOHO Asian Bar & Grill, 118897 Chatanooga, 138925 Marani (Georgian) — three unrelated origins. Kosher is dietary, so no single cuisine is truthful; International is the least wrong. See known_compromises." },
+
+    "Hawaii Regional Cuisine": { "cuisine": "Hawaiian", "cuisine_tags": ["Hawaii Regional", "Pacific Rim"] },
+    "Hawaiian": { "cuisine": "Hawaiian", "cuisine_tags": ["Pacific Rim"] },
+    "Pacific Rim": { "cuisine": "Hawaiian", "cuisine_tags": ["Pacific Rim", "Fusion"], "note": "80689 Kai Market - Sheraton Waikiki. Reads as Asian from the label, but the record is a Waikiki hotel restaurant — Hawaiian is correct." },
+    "Eurasian": { "cuisine": "Hawaiian", "cuisine_tags": ["Pacific Rim", "Fusion", "Eurasian"], "note": "115966 Roy's Waikoloa Bar & Grill — Roy's is Hawaii fusion, not a Europe/Asia hybrid as the label suggests." },
+    "Polynesian": { "cuisine": "Hawaiian", "cuisine_tags": ["Polynesian", "Pacific Rim", "Tiki"], "note": "13282 Bali Hai, San Diego." },
+
+    "Barbecue": { "cuisine": "Barbecue", "cuisine_tags": ["Southern"] },
+    "Fondue": { "cuisine": "Fondue", "cuisine_tags": ["Swiss", "Alpine"], "note": "Dominated by The Melting Pot's 26 sites. Kept as its own primary because it is a distinct booking intent, not a regional cuisine." },
+
+    "Wine Bar": { "cuisine": "Bar & Lounge", "cuisine_tags": ["Wine Bar"] },
+    "Bar / Lounge / Bottle Service": { "cuisine": "Bar & Lounge", "cuisine_tags": ["Bar", "Lounge"], "note": "150853 Comic Strip Live Comedy Club, 91990 Bathtub Gin, 45325 Wined Up Wine Bar, 34024 Two E Bar and Lounge — no origin information at all." },
+    "Brewery": { "cuisine": "Bar & Lounge", "cuisine_tags": ["Brewery", "Beer"] },
+    "Beer Garden": { "cuisine": "Bar & Lounge", "cuisine_tags": ["Beer Garden", "Beer"], "note": "83476 Pounds & Ounces, Chelsea." }
+  }
+}

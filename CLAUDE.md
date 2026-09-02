@@ -113,18 +113,53 @@ bucket a restaurant landed in.
 mapping lives in `scripts/cuisine-taxonomy.json`, reviewed by hand — never
 generated inline in the transform script.
 
-### Known limitation — chains
+### Chains — two encodings, and same-city ambiguity is real
 
-23 names occur at more than one location, but **zero have two locations in the
-same city**. The same-city ambiguity reported in discovery is therefore **not
-reproducible on this extract**.
+Chains appear in the data two different ways, and only one of them is visible to
+an exact-string comparison.
 
-What is demonstrable: cross-city disambiguation across those 23 names
-(`Town`, `Sienna`, `Pappas Bros. Steakhouse`, `Cocotte`, `Grange`, …). Model
-`chain_name` / `is_chain` and surface `location_label` on every row so the
-mechanism is in place, but do not present same-city disambiguation as something
-this dataset shows. If a same-city case is needed for demonstration, it must be
-introduced explicitly and labelled as such.
+**Exact duplicates — 23 names.** 23 names occur at more than one location with
+byte-identical `name` values, always exactly 2 locations, always in different
+cities (`Town`, `Sienna`, `Pappas Bros. Steakhouse`, `Cocotte`, `Grange`, …).
+One of the 23 shares a market: `Rafain Brazilian Steakhouse` (68527 Dallas /
+144949 Fort Worth), both in `Dallas - Fort Worth`, so filtering on `market` does
+not separate them — only `city` or distance does. Two more differ only by case:
+`Range` (4221) / `range` (141001) and `Eleven` (150715) / `ELEVEN` (3204).
+
+**Suffixed locations — the real chain encoding.** 1,086 records carry a
+` - <location>` suffix in `name`. Grouping on the base name (suffix stripped):
+**212 distinct base names have more than one location, covering 720 records, and
+43 of them have two or more locations in the same city** — 50 distinct
+(base name, city) clusters, 111 records. Largest: Cyclone Anaya's ×5 in Houston
+(145369, 145366, 151276, 145381, 145375), Churrascos ×4 in Houston (883, 150679,
+114319, 882), then ×3 clusters for Perry's Steakhouse (Houston), Atria's
+(Pittsburgh), Sushi Zushi (San Antonio), The Wine Bistro (Columbus), Stone Werks
+(San Antonio), BRAVO Cucina Italiana (Columbus).
+
+**Same-city ambiguity is therefore reproducible on this extract and must be
+demonstrated on real records.** No synthetic case is needed, and none may be
+introduced.
+
+Two consequences for the transform:
+
+- **`chain_name` cannot be a blind split on the separator.** 406 of the 1,086
+  suffixes match no city or neighborhood in the corpus: `Tien - Teppanyaki /
+  Shabu Shabu` (11437) is a cuisine descriptor, `The Westgate Hotel - The
+  Westgate Room` (72961) is a room, `Sixth & Pine - Nordstrom Green Hills
+  Nashville` (67003) is a department store, and `Bocca Di Bacco (Theatre
+  District - 45th St.)` (4478) carries the separator inside parentheses. The
+  separator glyph is also inconsistent *within* a single brand — `Café 21` uses
+  a hyphen on 64003 and an en dash on 64000; same for `BD's Mongolian Grill`,
+  `Merriman's` and `Zodiac at Neiman Marcus`.
+- **Neighborhood alone does not disambiguate.** On 9 of the 50 same-city
+  clusters, two locations share the same `neighborhood`: Fleming's Steakhouse
+  Scottsdale (40036 / 39919, both `Scottsdale`), The Herb Box Scottsdale (99511 /
+  99508), McCormick & Schmick's Pittsburgh (6794 / 13990, both `Downtown`),
+  Churrascos Houston (883 / 114319, both `West Side`), Cyclone Anaya's Houston
+  (145366 / 151276, both `Midtown / Montrose`), plus Tien Biloxi, Jia Biloxi, JW
+  Marriott San Antonio and The Westgate Hotel San Diego. Distance is what
+  resolves these nine, which makes the last link of the `location_label`
+  fallback chain load-bearing rather than decorative.
 
 Low-cardinality fields, usable as facets as delivered:
 
@@ -240,6 +275,28 @@ query matching a restaurant name must beat a query matching a cuisine or a
 neighborhood, always. `unordered()` on `name` because word position inside a
 restaurant name carries no meaning.
 
+### Typo tolerance cuts both ways — measured
+
+**59 pairs of distinct restaurant names sit at edit distance 1 of each other.**
+At `minWordSizefor1Typo: 4` these become mutually reachable, so typo tolerance
+can turn an exact known-item query into the wrong restaurant. The sharpest case
+is `Kaya` (79378) against `Naya` (148411) — **both in Pittsburgh**, so no geo
+signal separates them either. Others: `Uva` (60163) / `Yuva` (6666) / `Yuba`
+(141115), all three in New York; `Range` (4221) / `Grange` (26626, 111739);
+`Soto` (36775) / `Soco` (63832, 150973) / `Moto` (118249) / `SATO` (151987);
+`Silo` (88030) / `LILO` (95068) / `kilo` (108610) / `Lido` (63250); and a long
+tail of singular/plural or final-vowel pairs — `Cata`/`Catas`, `Maya`/`Mayas`,
+`Azur`/`Azure`, `Vita`/`Vitae`, `Savor`/`Savore`, `Luca`/`LUCCA`,
+`Prime`/`Primo`, `Beast`/`Feast`, `Venue`/`Avenue`.
+
+The inverse risk is the short-name tail: `Q` (106741), `B4` (116248), `AOC`
+(49894), `TE'` (7855), `Coi` (11065), `Oba` (3512), `Uva` (60163) fall under the
+4-character floor and get **no** tolerance at all. The floor protects them from
+the collisions above at the cost of returning nothing on a misspelling.
+
+Do not raise or lower these thresholds without a `test-queries.md` case naming
+the specific pair the change is meant to fix, and the pair it puts at risk.
+
 ### Geo strategy — the known-item / proximity conflict
 
 Distance must not dominate ranking on the known-item journey. A user searching
@@ -319,6 +376,7 @@ data/
   records.json               # generated, gitignored
   enrichment-cache.json      # generated, gitignored
   transform-report.md        # generated: counts, conflicts resolved, mapping applied
+  exploration.md             # committed: full profiling record behind sections 3 and 5
 src/
   main.jsx                   # Vite/React entry
   App.jsx                    # the <InstantSearch> tree
