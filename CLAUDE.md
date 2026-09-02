@@ -298,25 +298,29 @@ nothing to store and nothing to pre-sort. Distance ordering is produced by sendi
 sort control therefore offers the primary index as its geo-aware default plus the
 three replicas above.
 
-**`ranking` must be declared, not defaulted.** Algolia's default order puts `geo`
-second, ahead of `words`, `attribute` and `exact`, so any query carrying `aroundLatLng`
-ranks proximity above text relevance. `scripts/settings.json` currently demotes `geo`
-below `exact`, and declaring the order explicitly is right regardless — leaving it
-implicit hides a consequential choice in a default nobody reviews.
+**`ranking` is declared explicitly, at Algolia's default order.** Declaring it matters
+even when the value matches the default: the order is a consequential choice, and an
+implicit default is invisible in a diff.
 
-**The demotion itself is measured wrong, and is an open question.** The original
-justification claimed the discovery journey would still get geo-led ordering from coarse
-`aroundPrecision` buckets. It does not: with `geo` at position 7 it is consulted only
-among records tied on all six preceding criteria, which never happens on a broad query.
-Measured on `italian` from Denver, the first Denver record ranks **89th of 895**, and
-`aroundPrecision` changes nothing — only a finite `aroundRadius` puts Denver first, and
-that filters rather than ranks. See `test-queries.md` G3.
+`geo` sits second, ahead of `words`, `attribute` and `exact`. It was briefly demoted
+below `exact` on the theory that proximity must never outrank text relevance, with the
+justification that discovery would still get geo-led ordering from coarse
+`aroundPrecision` buckets. **That was measured and it was wrong.** At position 7 the
+criterion is consulted only among records tied on all six preceding criteria, which
+never happens on a broad query: on `italian` from Denver the first Denver record ranked
+89th of 895, and `aroundPrecision` changed nothing. The demotion cost the discovery
+journey its stated core behaviour and bought nothing. Restored 2026-09-03 — first Denver
+record now ranks 1st, the top ten are all Denver, and `popularity_score` breaks ties
+inside the bucket as intended. Zero regressions across the other 49 measurable cases.
+See `test-queries.md` G3 and the change log.
 
-The known-item journey is protected by the parameter separation, not by the demotion: it
-sends no geo parameter at all and computes distance client-side from `_geoloc` for
-display, so the `geo` criterion is inert there whatever its position. Restoring the
-default order, or adding a geo-first standard replica for discovery, are both live
-options — resolved in `test-queries.md` before either is applied.
+**The known-item journey is protected by the parameter separation, not by the ranking
+order.** It sends no geo parameter at all and computes distance client-side from
+`_geoloc` for display, so the `geo` criterion is inert there whichever position it
+holds — which is why the Nobu cases behaved identically before and after. That makes the
+protection a convention the two libraries make structural (§6), not a property of any
+setting: **if an autocomplete request ever carries `aroundLatLng`, proximity outranks the
+name match.** `src/searchParams.js` is where that has to stay true.
 
 ### Typo tolerance cuts both ways — measured
 

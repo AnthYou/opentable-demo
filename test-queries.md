@@ -132,7 +132,8 @@ behaviour — curated entry points, the geo-denied fallback chain, and the messa
 the location in use. They are marked `blocked`, not `fail`, because nothing has been
 built for them to fail against.
 
-**Cumulative: 40 pass, 10 fail, 2 blocked, of 52.**
+**Cumulative: 40 pass, 10 fail, 2 blocked, of 52.** (41 pass / 9 fail after the
+`ranking` change recorded in the change log below.)
 
 What passed without incident is worth stating, because it covers the whole of persona
 1's reported pain except the four ranking ties. Misspellings resolve cleanly: `benihanna`
@@ -207,6 +208,18 @@ discovery journey's stated core behaviour. Three ways out, none applied yet:
 3. **Bound the radius** in the discovery parameter set. Works today with no settings
    change, but §5 specifies `aroundRadius: "all"` and a bounded radius starves users in
    sparse markets.
+
+**Resolved 2026-09-03 — option 1 applied.** `geo` restored to position 2. Measured with
+one harness across all 50 measurable cases, before and after: **40/50 → 41/50, one
+improvement and zero regressions.** G3's first Denver record moves from 89th to 1st and
+the top ten are all Denver, ordered by popularity. G1, G2, G4 and C5 are unchanged,
+confirming that the known-item journey was never protected by the demotion — it is
+protected by sending no geo parameter at all.
+
+That distinction matters beyond this case: the protection is now a **convention the two
+libraries make structural** (CLAUDE.md §6), not a property of any setting. If an
+autocomplete request ever carries `aroundLatLng`, proximity will outrank the name match
+and G1 will fail. `src/searchParams.js` is where that has to stay true.
 
 ### Collateral finding — two chain members the separator rule misses
 
@@ -352,7 +365,7 @@ testable rather than hypothetical.
 |---|---|---|---|---|
 | G1 | `nobu`, geo = Denver (39.7343, -104.9794) | AC | 4524 `Nobu Fifty Seven` (New York), 13129 `Nobu Waikiki`, 16927 `Nobu San Diego` and 99796 `Nobu Lanai` rank above **every** Denver restaurant. Text relevance leads; geo is display and tie-break only. If a Denver bistro outranks Nobu, the known-item journey is broken. | **pass** |
 | G2 | `nobu`, geo = Denver | AC | 74146 `Nobuo at Teeter House` (Phoenix) and 75256 `Mitsunobu` (Menlo Park) rank **below** the four true Nobu locations. Tests that prefix and substring matches do not outrank the exact brand. | **fail** — 74146 `Nobuo at Teeter House` at rank 2, above three of the four true Nobu. Same root cause as failure group 1. See the second run above. |
-| G3 | `italian`, geo = Denver | IS | Geo leads. Denver-area Italian restaurants first, but `aroundPrecision` buckets must be coarse enough that `popularity_score` breaks ties inside a bucket — a marginally closer mediocre restaurant must not outrank an excellent one two streets further. | **fail** — 0 of the top 10 in the Denver area; the first Denver record sits at position 89 of 895. `aroundPrecision` does not compensate for the demoted `geo` criterion. See the second run above. |
+| G3 | `italian`, geo = Denver | IS | Geo leads. Denver-area Italian restaurants first, but `aroundPrecision` buckets must be coarse enough that `popularity_score` breaks ties inside a bucket — a marginally closer mediocre restaurant must not outrank an excellent one two streets further. | **pass** — after restoring `geo` to position 2 on 2026-09-03. All 10 top hits in Denver, first Denver record at position 1 (was 89 of 895), and popularity strictly decreasing inside the bucket: 4.688, 4.590, 4.589, 4.589, 4.497. |
 | G4 | `cyclone anaya's`, geo = Pittsburgh (40.4491, -79.9939) | AC | All 5 Houston records still returned, ~1,900 km away. A known-item query must not be filtered by proximity, only ordered by it as a tie-break. | **pass** |
 
 ---
@@ -365,6 +378,7 @@ unattributable. A change with no motivating case does not belong here.
 | date | setting changed | from → to | motivating case | improved | regressed |
 |---|---|---|---|---|---|
 | 2026-09-03 | *none — initial push* | — | — | baseline established: 16/23 pass | — |
+| 2026-09-03 | `ranking` — position of `geo` | position 7 (below `exact`) → position 2 (Algolia default) | **G3** `italian` from Denver | G3 fail → pass. First Denver record moves from 89th of 895 to 1st; all 10 top hits in Denver; popularity strictly decreasing inside the 5 km `aroundPrecision` bucket (4.688 → 4.497), which is the tie-break §5 specified. | **none.** All 49 other cases byte-identical. G1, G2, G4 and C5 unchanged — the known-item context sends no geo parameter, so the criterion stays inert there whatever its position. |
 
 The initial configuration in `scripts/settings.json` was pushed unchanged, so this row
 records a baseline rather than a change. Every row after it must name one setting, the
@@ -409,13 +423,12 @@ Recorded now so they are not quietly forgotten once results start coming in.
 6. **E2** — not yet run. Is `m = 50` right? Three of the top 20 are 5.0-star records
    with 139–242 reviews. The thin tail is handled (E4), so this is a calibration
    judgment, not a bug.
-7. **Where does `geo` belong in `ranking`?** The measured answer from G3 is: not at
-   position 7. The demotion protects the known-item journey but leaves discovery with no
-   geo-led ordering at all — first Denver record at position 89 of 895. Restoring
-   Algolia's default (geo second) costs nothing on G1/G4, which pass because the
-   known-item context sends no geo parameter; a geo-first standard replica is the more
-   explicit alternative. This is the single highest-value open question, because it is
-   the one failure that disables a whole journey rather than misordering a few hits.
+7. ~~**Where does `geo` belong in `ranking`?**~~ **Answered and applied 2026-09-03:**
+   position 2, Algolia's default. Restoring it fixed G3 with zero regressions across the
+   other 49 measurable cases. The geo-first standard replica is no longer needed. What
+   replaces this as a live risk is narrower: the known-item journey is now protected only
+   by sending no geo parameter, so `src/searchParams.js` must keep the two contexts'
+   parameters apart or G1 regresses.
 8. **K18 and the ambiguous label.** The index side is correct and both colliding records
    carry `location_label_ambiguous: true`. The case cannot pass until the front end
    appends distance where the flag is set, which makes it the first hard requirement the
