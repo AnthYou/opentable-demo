@@ -14,8 +14,7 @@ import {
 
 import { searchClient, indexName, sortOptions } from './searchClient.js';
 import {
-  paramsForQuery,
-  looksLikeCategory,
+  searchParams,
   geoParams,
   DEMO_LOCATIONS,
   DEMO_NEIGHBOURHOODS,
@@ -112,10 +111,8 @@ function LocationPicker({ value, onChange }) {
  * has to say so. The IP rung gets a full sentence rather than a label, because "your
  * approximate location" alone does not explain *why* it is approximate.
  */
-function GeoBanner({ status, source, label, byCategory, waiting }) {
-  const ranking = byCategory
-    ? `Nearest to ${label} first, best rated within each area.`
-    : `Ranked by how well the name matches. Distance from ${label} is shown, not ranked.`;
+function GeoBanner({ status, source, label, waiting }) {
+  const ranking = `Nearest to ${label} first, best rated within each area. An exact name match ranks first wherever it is.`;
 
   const explanation =
     source === 'ip'
@@ -132,22 +129,13 @@ function GeoBanner({ status, source, label, byCategory, waiting }) {
   );
 }
 
-/** Reads the query from context so the banner stays a pure component. */
-function HeaderBanner(props) {
-  const { indexUiState } = useInstantSearch();
-  return <GeoBanner {...props} byCategory={looksLikeCategory(indexUiState.query ?? '')} />;
-}
-
 /**
- * Applies the dial from `searchParams.js`. Geo coordinates are always sent; only
- * `aroundPrecision` changes, and it changes on what the query looks like — a category
- * gets a fine bucket so proximity orders the results, a name gets a bucket so coarse
- * that geo decides nothing.
+ * One parameter set for every query, with the resolved position merged in. Proximity
+ * leads and `exact` protects the known-item journey from inside the index `ranking`, so
+ * nothing here depends on what the query looks like.
  */
 function SearchConfiguration({ geo }) {
-  const { indexUiState } = useInstantSearch();
-  const query = indexUiState.query ?? '';
-  return <Configure {...paramsForQuery(query)} {...(geo?.params ?? {})} />;
+  return <Configure {...searchParams} {...(geo?.params ?? {})} />;
 }
 
 /**
@@ -308,7 +296,7 @@ export default function App() {
             />
             <LocationPicker value={selectedLabel} onChange={setSelectedLabel} />
           </div>
-          <HeaderBanner status={status} source={geo.source} label={geo.label} waiting={selected === null} />
+          <GeoBanner status={status} source={geo.source} label={geo.label} waiting={selected === null} />
         </div>
       </header>
 
