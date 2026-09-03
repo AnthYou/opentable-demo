@@ -273,7 +273,8 @@ searchableAttributes: [
 indexLanguages / queryLanguages: ["en"]
 attributesForFaceting: [
   "searchable(cuisine)", "cuisine_tags", "dining_style",
-  "price_range", "price_tier", "occasions", "city", "market", "neighborhood",
+  "price_range", "price_tier", "occasions",
+  "searchable(city)", "searchable(market)", "searchable(neighborhood)",
   "filterOnly(is_chain)"
 ]
 customRanking: ["desc(popularity_score)", "desc(reviews_count)"]
@@ -334,6 +335,18 @@ whose base name equalled the query, which cancelled the real name match: on `pri
 90916 `Prime - Bellagio Hotel` scored `exact=1` through `chain_name` and beat 117067
 `Prime`, whose name *is* the query. Removed 2026-09-03; `test-queries.md` A2 went from
 fail to pass with zero regressions. It stays in the record as a returned attribute for display and grouping; it is not in `attributesForFaceting` and never was.
+
+**The three place facets are `searchable()`, and that was a bug fix rather than a preference.**
+`city`, `market` and `neighborhood` were declared as plain facets while `App.jsx` rendered a
+search box on each, so all three boxes were dead — the API answers *Cannot search in `city`
+attribute* and returns nothing. Cardinality is why they need search rather than a longer
+`showMore` list: 916 distinct cities and 1,062 distinct neighborhoods behind a `limit` of 6.
+No amount of scrolling reaches a named place, which is the browse-by-place path persona 2
+depends on. `market` is included at only 51 values because it is opaque at inconsistent
+granularity — a user looking for Fort Worth cannot guess it lives inside `Dallas - Fort
+Worth`. The modifier enables facet-value search only and never enters
+`searchableAttributes`, so matching and ranking cannot move; re-measured after the push to
+confirm it. Added 2026-09-03.
 
 **`ranking` is declared explicitly, at Algolia's default order.** Declaring it matters
 even when the value matches the default: the order is a consequential choice, and an
