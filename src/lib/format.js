@@ -34,26 +34,38 @@ export function formatDistance(miles) {
 }
 
 /**
- * The third rung of the `location_label` fallback chain (CLAUDE.md §3).
+ * The place line: neighborhood, city and distance.
  *
- * The transform computes the first two — neighborhood when it differs from city,
- * otherwise city — and sets `location_label_ambiguous` on the 18 records where they are
- * insufficient: 9 same-city chain clusters whose siblings share a neighborhood, so both
- * rows read identically. Fleming's Steakhouse 40036 and 39919 both resolve to
- * "Scottsdale".
+ * `location_label` from the transform carries only one of neighborhood or city —
+ * neighborhood when it differs, city otherwise — which tells the reader where a
+ * restaurant is only half the time. The card shows both, so a neighborhood always comes
+ * with the city that contains it.
  *
- * Distance completes it when the user's position is known. When it is not, the address
- * is the only remaining discriminator, which is why `address` is retrieved on both
- * journeys.
+ * Distance is appended whenever a position is known. It completes the label on the 18
+ * records flagged `location_label_ambiguous`, where 9 same-city chain clusters share a
+ * neighborhood and both rows would otherwise read identically — Fleming's Steakhouse
+ * 40036 and 39919 both resolve to "Scottsdale". It also makes the ranking legible: with
+ * proximity leading, a reader can see the distances ascend down the page.
+ *
+ * `address` stands in for distance on the flagged records when no position is known, and
+ * is the reason `address` is retrieved despite not being searchable.
+ *
+ * Computed client-side from `_geoloc`, which is what that attribute is retrieved for.
  */
-export function resolveLocationLabel(hit, userPosition) {
-  const base = hit.location_label || hit.city || '';
-  if (!hit.location_label_ambiguous) return base;
+export function formatPlace(hit, userPosition) {
+  const city = [hit.city, hit.state].filter(Boolean).join(', ');
+  const hood = String(hit.neighborhood ?? '').trim();
+  const parts = [];
+
+  if (hood && hood.toLowerCase() !== String(hit.city ?? '').trim().toLowerCase()) parts.push(hood);
+  if (city) parts.push(city);
+  if (!parts.length && hit.location_label) parts.push(hit.location_label);
 
   const distance = formatDistance(distanceMiles(userPosition, hit._geoloc));
-  if (distance) return `${base} · ${distance}`;
-  if (hit.address) return `${base} · ${hit.address}`;
-  return base;
+  if (distance) parts.push(distance);
+  else if (hit.location_label_ambiguous && hit.address) parts.push(hit.address);
+
+  return parts;
 }
 
 /**

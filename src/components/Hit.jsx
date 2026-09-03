@@ -1,5 +1,5 @@
 import { Highlight } from 'react-instantsearch';
-import { resolveLocationLabel, formatPrice, formatRating, initials, tileHue } from '../lib/format.js';
+import { formatPlace, formatPrice, formatRating, initials, tileHue } from '../lib/format.js';
 import { Stars } from './Stars.jsx';
 import { EVENT_CLICKED, EVENT_BOOKED } from '../insights.js';
 
@@ -7,9 +7,13 @@ import { EVENT_CLICKED, EVENT_BOOKED } from '../insights.js';
  * One result card.
  *
  * The composition follows the experience being replaced, because those codes are what a
- * diner already knows how to read: a block on the left, the name, the rating, then one
- * meta line of cuisine, place and price. What is modernised is everything else — the
- * type scale, the spacing, a real hover state, and a rating that renders 4.3 as 4.3.
+ * diner already knows how to read: a block on the left, the name, the rating, then the
+ * place and a meta line of cuisine and price. What is modernised is everything else —
+ * the type scale, the spacing, a real hover state, and a rating that renders 4.3 as 4.3.
+ *
+ * Place gets its own line, above cuisine and price. It carries neighborhood, city, state
+ * and distance, so a reader can tell where every result is and watch the distances ascend
+ * down the page while proximity is leading the ranking.
  *
  * `Highlight` on the name is load-bearing rather than decorative: with typo tolerance
  * active a query for `naya` can return `Kaya`, and the row only makes sense if the
@@ -29,11 +33,11 @@ import { EVENT_CLICKED, EVENT_BOOKED } from '../insights.js';
  * nesting. `Book` is raised above it so a booking stays its own target.
  */
 export function Hit({ hit, userPosition, sendEvent }) {
-  const location = resolveLocationLabel(hit, userPosition);
+  const place = formatPlace(hit, userPosition);
   const price = formatPrice(hit);
   const rating = formatRating(hit);
 
-  const meta = [hit.cuisine, location, price.label].filter(Boolean);
+  const meta = [hit.cuisine, price.label].filter(Boolean);
 
   return (
     <article className="hit" onClick={() => sendEvent?.('click', hit, EVENT_CLICKED)}>
@@ -53,6 +57,8 @@ export function Hit({ hit, userPosition, sendEvent }) {
         </h3>
 
         {rating ? <Stars stars={hit.stars_count} reviews={rating.reviews} /> : null}
+
+        {place.length ? <p className="hit-place">{place.join(' · ')}</p> : null}
 
         <p className="hit-meta">{meta.join(' · ')}</p>
 

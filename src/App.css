@@ -664,8 +664,21 @@
   color: inherit;
 }
 
-.hit-meta {
+/*
+ * The place line sits above cuisine and price and is weighted slightly heavier than
+ * either, because with proximity leading the ranking, where a restaurant is is the column
+ * a reader scans to check the order.
+ */
+.hit-place {
   margin-top: 0.25rem;
+  color: var(--ink);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.hit-meta {
+  margin-top: 0.125rem;
   color: var(--ink-2);
   font-size: 0.8125rem;
   line-height: 1.4;
