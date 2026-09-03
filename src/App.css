@@ -74,13 +74,22 @@
   color: var(--ink);
 }
 
-/* Header box: taller, so the icon is scaled and offset to match, and the text clears it.
-   Icon spans 18px to 36px; text starts at 48px. */
+/*
+ * Header box: taller, so the icon is scaled and offset to match, and the text clears it.
+ * Icon spans 18px to 36px; text starts at 48px.
+ *
+ * `background-size` and `no-repeat` are not optional here. The theme declares the icon as
+ * `background: url(...) repeat` around a 16x16 SVG, so enlarging the box to 18px tiles
+ * the image and leaves a 2px sliver of a second copy along the right and bottom edges —
+ * which reads as a faint border around the icon.
+ */
 .search-row .ais-SearchBox-form::before {
   left: 1.125rem;
   width: 1.125rem;
   height: 1.125rem;
   margin-top: -0.5625rem;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
 }
 
 .search-row .ais-SearchBox-input {
