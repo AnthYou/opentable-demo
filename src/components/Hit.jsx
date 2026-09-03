@@ -19,6 +19,14 @@ import { EVENT_CLICKED, EVENT_BOOKED } from '../insights.js';
  * heuristically, not observed — stated wherever it appears, and a disclaimer on every
  * card is noise. It appears on the curated entry points and its facet, each carrying the
  * note once.
+ *
+ * The whole card opens `reserve_url`, and it does so through a real anchor on the name
+ * whose hit area is expanded over the card in CSS. A click handler calling `window.open`
+ * would have been fewer lines and worse: no keyboard activation, no middle-click, no
+ * cmd-click, no context menu, and nothing for a screen reader to announce as a link.
+ * Wrapping the card in an anchor instead is not available — `Book` is an anchor too, and
+ * nesting them is invalid HTML — so the overlay is what buys link semantics without the
+ * nesting. `Book` is raised above it so a booking stays its own target.
  */
 export function Hit({ hit, userPosition, sendEvent }) {
   const location = resolveLocationLabel(hit, userPosition);
@@ -35,7 +43,13 @@ export function Hit({ hit, userPosition, sendEvent }) {
 
       <div className="hit-body">
         <h3 className="hit-name">
-          <Highlight attribute="name" hit={hit} />
+          {hit.reserve_url ? (
+            <a className="hit-link" href={hit.reserve_url} target="_blank" rel="noreferrer">
+              <Highlight attribute="name" hit={hit} />
+            </a>
+          ) : (
+            <Highlight attribute="name" hit={hit} />
+          )}
         </h3>
 
         {rating ? <Stars stars={hit.stars_count} reviews={rating.reviews} /> : null}

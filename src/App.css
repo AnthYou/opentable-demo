@@ -513,6 +513,8 @@
 
 .hit {
   display: grid;
+  /* Containing block for the name anchor's overlay. */
+  position: relative;
   width: 100%;
   padding: 0.875rem;
   gap: 0 0.875rem;
@@ -553,6 +555,44 @@
   line-height: 1.3;
 }
 
+.hit-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+/*
+ * Expands the name anchor over the whole card, so the card is a real link — focusable,
+ * middle-clickable, with a working context menu — without wrapping the card in an anchor,
+ * which `Book` would make invalid by nesting. The trade-off is that the card text is no
+ * longer selectable, since the pointer lands on the overlay; on a result row that is
+ * worth the link semantics.
+ */
+.hit-link::after {
+  content: '';
+  /*
+   * `z-index` is not decoration here. The star row is `position: relative` and its filled
+   * layer `absolute` — both required for the clipping that renders 4.3 as 4.3 — and both
+   * sit after this anchor in the DOM. Left at `auto` they share a stacking level with the
+   * overlay, tree order decides, and they paint on top: clicking the stars did nothing
+   * while the rest of the card worked. An explicit level puts the overlay above every
+   * positioned descendant instead of depending on markup order.
+   */
+  position: absolute;
+  z-index: 1;
+  border-radius: var(--radius);
+  inset: 0;
+}
+
+/* The focus ring has to be drawn on the overlay, or it outlines the name alone. */
+.hit-link:focus-visible {
+  outline: none;
+}
+
+.hit-link:focus-visible::after {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
 .hit-name mark {
   padding: 0;
   background: #fdeec4;
@@ -573,6 +613,9 @@
 }
 
 .hit-book {
+  /* Raised above the card-wide overlay, so a booking stays its own target. */
+  position: relative;
+  z-index: 2;
   align-self: center;
   padding: 0.4rem 0.75rem;
   border: 1px solid var(--brand);
