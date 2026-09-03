@@ -631,6 +631,24 @@ are the numbers that justify every decision in section 3.
   events, and a `book a table` conversion event. Conversion is the stated
   business goal, so the prototype should be able to measure it, and the event
   stream is the prerequisite for everything in the next section.
+
+  What `src/insights.js` emits, verified by capturing the built payloads:
+  `clickedObjectIDsAfterSearch` named `Restaurant Clicked` and
+  `convertedObjectIDsAfterSearch` named `Table Booked`, **both carrying the same
+  `queryID`** as the search that produced the hit, plus the position for the click.
+  `viewedObjectIDs` comes free from the middleware and carries no `queryID`, which
+  is correct — Algolia has no after-search variant of a view event.
+
+  The Insights client uses the **search** key. Insights is a separate endpoint from
+  indexing and needs no write permission; a write key here would land in the browser
+  bundle, which is the one thing §7 exists to prevent.
+
+  The `userToken` is an anonymous value written to `localStorage`, with
+  `useCookie: false` so the demo sets no cookie nobody consented to. **This is
+  demo-grade.** In production that token is where consent handling belongs — none
+  until the visitor agrees, and the account identifier once there is one so events
+  survive across devices. Persisting an identifier without asking is what a privacy
+  review stops.
 - When a decision in this file turns out to be wrong, fix the file. A stale
   context file is worse than none.
 

@@ -16,6 +16,7 @@ import {
 import { searchClient, indexName, sortOptions } from './searchClient.js';
 import { paramsForQuery, looksLikeCategory, geoParams, DEMO_LOCATIONS } from './searchParams.js';
 import { Hit } from './components/Hit.jsx';
+import { insightsProps } from './insights.js';
 import './App.css';
 
 /**
@@ -215,15 +216,20 @@ export default function App() {
   // declaration rather than an arrow plus `displayName`: assigning to the component
   // object is a mutation React treats as illegal.
   const HitComponent = useMemo(() => {
-    function HitWithPosition({ hit }) {
-      return <Hit hit={hit} userPosition={position} />;
+    function HitWithPosition({ hit, sendEvent }) {
+      return <Hit hit={hit} userPosition={position} sendEvent={sendEvent} />;
     }
     return HitWithPosition;
   }, [position]);
 
 
   return (
-    <InstantSearch searchClient={searchClient} indexName={indexName} future={{ preserveSharedStateOnUnmount: true }}>
+    <InstantSearch
+      searchClient={searchClient}
+      indexName={indexName}
+      insights={insightsProps}
+      future={{ preserveSharedStateOnUnmount: true }}
+    >
       <SearchConfiguration geo={geo} />
 
       <header className="app-header">

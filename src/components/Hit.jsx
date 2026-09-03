@@ -1,5 +1,6 @@
 import { Highlight } from 'react-instantsearch';
 import { resolveLocationLabel, formatPrice, formatRating } from '../lib/format.js';
+import { EVENT_CLICKED, EVENT_BOOKED } from '../insights.js';
 
 /**
  * One result card.
@@ -13,13 +14,16 @@ import { resolveLocationLabel, formatPrice, formatRating } from '../lib/format.j
  * disclaimer on every card is noise. It appears instead on the curated entry points and
  * the facet, each carrying the note once.
  */
-export function Hit({ hit, userPosition }) {
+export function Hit({ hit, userPosition, sendEvent }) {
   const location = resolveLocationLabel(hit, userPosition);
   const price = formatPrice(hit);
   const rating = formatRating(hit);
 
   return (
-    <article className="hit">
+    // The click event fires on the card, the conversion on the booking link. Both go
+    // through `sendEvent`, which is what attaches the queryID of the search that
+    // produced this hit — see `insights.js`.
+    <article className="hit" onClick={() => sendEvent?.('click', hit, EVENT_CLICKED)}>
       <img className="hit-image" src={hit.image_url} alt="" loading="lazy" width="120" height="90" />
 
       <div className="hit-body">
@@ -52,6 +56,12 @@ export function Hit({ hit, userPosition }) {
         target="_blank"
         rel="noreferrer"
         data-object-id={hit.objectID}
+        onClick={(event) => {
+          // Conversion, not a click: this is the event the business goal is measured on.
+          // `stopPropagation` so one booking does not also register as a card click.
+          event.stopPropagation();
+          sendEvent?.('conversion', hit, EVENT_BOOKED);
+        }}
       >
         Book a table
       </a>
