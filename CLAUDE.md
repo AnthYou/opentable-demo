@@ -356,8 +356,8 @@ order.** It sends no geo parameter at all and computes distance client-side from
 `_geoloc` for display, so the `geo` criterion is inert there whichever position it
 holds — which is why the Nobu cases behaved identically before and after. That makes the
 protection a convention the two libraries make structural (§6), not a property of any
-setting: **if an autocomplete request ever carries `aroundLatLng`, proximity outranks the
-name match.** `src/searchParams.js` is where that has to stay true.
+setting: **if a typed query ever carries `aroundLatLng`, proximity outranks the name
+match.** `src/searchParams.js` is where that has to stay true.
 
 ### Typo tolerance cuts both ways — measured
 
@@ -405,10 +405,10 @@ parameters rather than a global choice.
 
 Resolution, per journey:
 
-- **Known-item / autocomplete** — text relevance leads. Geo is used for
-  *display* (distance in `location_label`, which is what separates chain
-  locations) and as a tie-breaker only.
-- **Discovery / browse** — geo leads. `aroundLatLng` from the browser,
+- **Typed query (known-item)** — text relevance leads. No geo parameter is sent at
+  all. Distance is computed client-side from `_geoloc` for *display*, which is what
+  separates chain locations.
+- **Empty query (discovery / browse)** — geo leads. `aroundLatLng` from the browser,
   `aroundLatLngViaIP` as fallback, `aroundRadius: "all"`, and `aroundPrecision`
   buckets coarse enough that `popularity_score` breaks ties inside a bucket.
   Without precision buckets, a marginally closer mediocre restaurant outranks an
@@ -420,17 +420,17 @@ the results are never unexplained.
 
 ## 6. Stack and repo layout
 
-Front end: **Vite + React InstantSearch, and nothing else.** The header box with
-its dropdown is InstantSearch's own `<Autocomplete>` widget, not a second library.
+Front end: **Vite + React InstantSearch, and nothing else.** One search box, one
+results page, search-as-you-type. No suggestion dropdown.
 
-This corrects an earlier decision. The original plan paired InstantSearch with
-Autocomplete.js on the grounds that the combination was Algolia's documented
-reference integration for a dropdown sitting above a results experience. That was
-true when it was written and is no longer: `react-instantsearch@7.48` ships a
-first-class `<Autocomplete>` widget that takes `indices[].searchParameters`,
-`itemComponent`, `headerComponent`, `noResultsComponent`, recent searches and a
-detached mobile mode. One library means one state model, one URL sync, one Insights
-wiring and one hit renderer instead of two of each — and it removed five packages.
+This corrects two earlier decisions in sequence. The original plan paired
+InstantSearch with Autocomplete.js for a header dropdown; that pairing was dropped
+once `react-instantsearch@7.48` was found to ship its own `<Autocomplete>` widget.
+The dropdown itself was then dropped too, and for a better reason: **it adds a
+second surface showing the same records the page already shows.** Nothing in
+section 2 asks for it. Neither does the recent-searches feature that came with the
+widget — no reported pain mentions returning to a previous query, and section 1 puts
+features with no stated pain out of scope however cheap they are.
 
 The starter shipped with the dataset is pinned to Node 9 and
 `parcel-bundler@1.9.7`, both unmaintained and carrying critical transitive
@@ -440,40 +440,39 @@ belong to the experience itself. From the original bundle we keep the dataset,
 `resources/current-experience.png` as a reference for the experience being
 replaced, and selected styling cues.
 
-### One application, two search contexts
+### One surface, two intents
 
-This is a single app with a single search box, not two experiences the user has
-to choose between. The same box serves both personas, which is the point of the
-demo:
+The personas are **intents, not surfaces**. There is one box and one results page,
+and the same keystroke serves both:
 
-The personas are **intents, not surfaces**. One page serves both:
+- **Persona 1, known-item.** Text relevance leads. The user types a name, possibly
+  misspelled or concatenated, and the exact match has to win.
+- **Persona 2, discovery.** The empty query is a destination — curated entry points,
+  then results with facets, sorts and proximity.
 
-- **The header box and its dropdown** — the `<Autocomplete>` widget. Persona 1:
-  known-item. Text relevance leads, five hits, distance shown for disambiguation.
-- **The page below** — the main index. Persona 2: discovery. Curated entry points
-  on an empty query, then results with facets, sorts and geo-aware ranking.
+A second dropdown surface was tried and removed. It showed the same records the page
+already showed, one keystroke earlier, which is noise rather than help.
 
-Selecting a suggestion in the dropdown goes straight to the restaurant;
-submitting the query lands in the results grid. One keystroke drives both.
+**One surface means one parameter set, and geo becomes the only thing that varies.**
+That is not a simplification of convenience — it is forced, and the rule is measured:
 
-The two contexts **must not share search parameters**, and this is the constraint
-that survived the library change. The widget mounts an isolated `<Index>` carrying
-its own `<Configure>`, so `indices[].searchParameters` and the page's `<Configure>`
-produce two independent requests. Verified by interception on the query `prime`:
-the dropdown request asks for 5 hits, 13 attributes, no facets and **no geo
-parameter**; the page request asks for 24 hits, 23 attributes, 8 facets and
-`aroundLatLng` + `aroundRadius` + `aroundPrecision`.
+> **Geo parameters apply only while the query is empty.**
 
-Declare both sets side by side in `src/searchParams.js`, with the reasoning inline.
-The separation is held there and by its boot-time assertion — not by the choice of
-library, which is what the earlier plan wrongly relied on.
+With nothing typed, proximity is the only ranking signal the user has given us, and
+discovery should lead with it. Once they type, their words outrank their location.
+`geo` sits second in `ranking`, ahead of `words`, `attribute` and `exact`, so a geo
+parameter on a typed query lets a nearer *partial* match displace an exact name:
+`Ocean Prime - Denver` (2 km) beats 117067 `Prime` (1,062 km) on `prime`,
+`Barley & Rye` beats `Rye`, `Workshop at UNION` beats `Union`. Sending geo on every
+query takes the test suite from 42/50 to 38/50.
 
-**Sharing one set was measured and rejected: 42/50 test cases to 38/50.** On short
-ambiguous names the nearer record that also matches the word displaces the exact
-name — `Ocean Prime - Denver` (2 km) beats 117067 `Prime` (1,062 km) on `prime`,
-`Barley & Rye` beats `Rye` on `rye`, `Workshop at UNION` beats `Union` on `union`.
-The widget mounts its isolated index lazily, on first focus unless `autoFocus` is
-set, so the known-item request costs nothing until the user engages.
+The known cost of the rule is the reverse case: `italian` from Denver returns Memphis
+and Orlando rather than Denver, because it is a typed query. See `test-queries.md` G3.
+Making proximity an explicit user control would recover it; that is an open question,
+not a decision.
+
+The rule lives in `src/searchParams.js` with the reasoning inline, and a boot-time
+assertion keeps geo out of the base set.
 
 ```
 CLAUDE.md
@@ -505,16 +504,14 @@ src/
   searchClient.js            # single Algolia client, search-only key
   searchParams.js            # both parameter sets, declared side by side
   insights.js                # queryID propagation, click + conversion events
-  autocomplete/              # item renderer for the <Autocomplete> widget
   components/                # custom InstantSearch widgets (Hit, Facets, SortBy, …)
   lib/                       # shared formatters (location_label, distance, price)
 public/                      # static assets served as-is
 ```
 
 Flat `components/` is the InstantSearch convention — one component per custom
-widget. Resist inventing a deeper taxonomy: the only separation that carries
-meaning here is autocomplete versus InstantSearch, and the libraries already
-provide it.
+widget. Resist inventing a deeper taxonomy: with a single surface and a single
+library there is no second axis to split on.
 
 `resources/` is source material and is never written to. Generated artefacts go
 to `data/` only; the transform reads from `resources/dataset/` and writes to

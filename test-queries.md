@@ -19,10 +19,10 @@ other outright.
 - **One setting at a time.** Five changes at once makes the result unattributable.
   Every settings change gets a line in the change log at the bottom: what changed,
   which query motivated it, what improved, what regressed.
-- **`ctx` column.** `AC` = the Autocomplete.js header dropdown (persona 1, text
-  relevance leads). `IS` = the InstantSearch results page (persona 2, geo leads).
-  Cases marked `AC+IS` must hold in both, with the parameter sets of
-  `src/searchParams.js` differing per section 5.
+- **`journey` column.** `P1` = known-item (persona 1: the user knows the name).
+  `P2` = discovery (persona 2: browsing, refining, being inspired). These are user
+  *intents*, not surfaces — there is one search box and one results page. The column
+  records which pain a case exercises, not where it runs.
 - Cases flagged **⚠ predicted fail** are ones the profiling said were likely to fail
   on a first configuration. They are written as the target, not as a forecast to be
   satisfied by weakening the target. Once measured, the marker records whether the
@@ -39,7 +39,7 @@ search-only key, default parameters, no per-context overrides — so this measur
 index configuration alone, not either journey's parameter set.
 
 **23 of the 52 cases run. 16 pass, 7 fail.** The remaining 29 are still `untested`;
-they need the geo, empty-query or dropdown context that does not exist yet.
+they need the geo or empty-query behaviour that did not exist yet.
 
 A correction to the method before the results. The first harness checked whether the
 expected objectID appeared in the top two, which is not what several cases ask for —
@@ -126,8 +126,8 @@ one setting at a time, with the before and after recorded in the change log belo
 
 ### Cases not yet run
 
-29 remain `untested`. K2, K3, K6, K8–K11, K15–K20 (partial-name and misspelling cases
-that belong in the dropdown context), D1–D6 (cuisine breadth), E1–E4 (empty query and
+29 remain `untested`. K2, K3, K6, K8–K11, K15–K20 (partial-name and misspelling
+cases), D1–D6 (cuisine breadth), E1–E4 (empty query and
 geo fallback, which need the UI), G1–G4 (geo). One informal observation worth flagging:
 on `nobu` with no geo parameters, 74146 `Nobuo at Teeter House` appeared at rank 2,
 above three of the four true Nobu locations. If that holds under a proper run, **G2
@@ -228,7 +228,7 @@ protected by sending no geo parameter at all.
 
 That distinction matters beyond this case: the protection is now a **convention the two
 libraries make structural** (CLAUDE.md §6), not a property of any setting. If an
-autocomplete request ever carries `aroundLatLng`, proximity will outrank the name match
+typed query ever carries `aroundLatLng`, proximity will outrank the name match
 and G1 will fail. `src/searchParams.js` is where that has to stay true.
 
 ### Collateral finding — two chain members the separator rule misses
@@ -318,36 +318,36 @@ rather than softened into `pass`.
 
 The floor. If these fail, nothing else matters.
 
-| id | query | ctx | expectation | status |
+| id | query | journey | expectation | status |
 |---|---|---|---|---|
-| K1 | `Pappas Bros. Steakhouse` | AC+IS | 1959 (Dallas) and 1854 (Houston) are the top 2 hits, in either order, and are visually distinguishable by `location_label`. No third result above them. | **pass** |
-| K2 | `Mama's Fish House` | AC+IS | 2767 (Paia, HI) is rank 1. It carries the highest `reviews_count` in the corpus (12,669), so it must not be displaced by a thin-review record. | **pass** |
-| K3 | `Roaring Fork` | AC+IS | 5545 (Scottsdale) is rank 1 and unique — a single-location name with no homonym. | **pass** |
-| K4 | `Acenar` | AC+IS | 11425 `Ácenar` (San Antonio) is rank 1. Query typed without the diacritic; requires folding on both record and query side. | **pass** |
-| K5 | `Rizzuto's Restaurant and Bar` | AC+IS | 41374 (Westport) and 41371 (West Hartford) are the top 2. Both store a **curly** apostrophe U+2019; the query uses the straight U+0027 a keyboard produces. | **pass** |
-| K6 | `Cafe 21` | AC+IS | 64003 and 64000 both returned. Stored as `Café 21` with a diacritic, and the two records use **different dash glyphs** in their location suffix (hyphen vs en dash). | **pass** |
+| K1 | `Pappas Bros. Steakhouse` | P1 | 1959 (Dallas) and 1854 (Houston) are the top 2 hits, in either order, and are visually distinguishable by `location_label`. No third result above them. | **pass** |
+| K2 | `Mama's Fish House` | P1 | 2767 (Paia, HI) is rank 1. It carries the highest `reviews_count` in the corpus (12,669), so it must not be displaced by a thin-review record. | **pass** |
+| K3 | `Roaring Fork` | P1 | 5545 (Scottsdale) is rank 1 and unique — a single-location name with no homonym. | **pass** |
+| K4 | `Acenar` | P1 | 11425 `Ácenar` (San Antonio) is rank 1. Query typed without the diacritic; requires folding on both record and query side. | **pass** |
+| K5 | `Rizzuto's Restaurant and Bar` | P1 | 41374 (Westport) and 41371 (West Hartford) are the top 2. Both store a **curly** apostrophe U+2019; the query uses the straight U+0027 a keyboard produces. | **pass** |
+| K6 | `Cafe 21` | P1 | 64003 and 64000 both returned. Stored as `Café 21` with a diacritic, and the two records use **different dash glyphs** in their location suffix (hyphen vs en dash). | **pass** |
 
 ## 2. Misspelled name
 
 Persona 1's headline pain: "restaurant names are hard to spell or remember".
 
-| id | query | ctx | expectation | status |
+| id | query | journey | expectation | status |
 |---|---|---|---|---|
-| K7 | `papas bros steakhouse` | AC+IS | 1959 and 1854 in the top 2. Combines a dropped double consonant with a missing abbreviation period. | **pass** |
-| K8 | `benihanna` | AC+IS | Benihana's 24 locations dominate the result set. One inserted character. | **pass** |
-| K9 | `melting pott` | AC+IS | The Melting Pot's 26 locations dominate. One inserted character on the last token. | **pass** |
-| K10 | `ruths chris` | AC+IS | The 31 `Ruth's Chris Steak House` records dominate. Missing apostrophe, not a typo — tests separator stripping rather than typo tolerance. | **pass** |
-| K11 | `chirrascos` | AC+IS | Churrascos' 4 Houston locations (883, 150679, 114319, 882) returned. One transposed character. | **pass** |
-| K12 | `pappas brothers` | AC+IS | 1959 and 1854 returned. **⚠ prediction refuted 2026-09-03** — it was written as a predicted failure because the edit distance from `Bros.` to `brothers` is 3, beyond any typo setting. The engine returns 1854 and 1959 as the top two regardless, so no synonym is required. The 66 records carrying a period abbreviation (`data/exploration.md` A1.4) may still deserve one, but no test demands it. | **pass** |
+| K7 | `papas bros steakhouse` | P1 | 1959 and 1854 in the top 2. Combines a dropped double consonant with a missing abbreviation period. | **pass** |
+| K8 | `benihanna` | P1 | Benihana's 24 locations dominate the result set. One inserted character. | **pass** |
+| K9 | `melting pott` | P1 | The Melting Pot's 26 locations dominate. One inserted character on the last token. | **pass** |
+| K10 | `ruths chris` | P1 | The 31 `Ruth's Chris Steak House` records dominate. Missing apostrophe, not a typo — tests separator stripping rather than typo tolerance. | **pass** |
+| K11 | `chirrascos` | P1 | Churrascos' 4 Houston locations (883, 150679, 114319, 882) returned. One transposed character. | **pass** |
+| K12 | `pappas brothers` | P1 | 1959 and 1854 returned. **⚠ prediction refuted 2026-09-03** — it was written as a predicted failure because the edit distance from `Bros.` to `brothers` is 3, beyond any typo setting. The engine returns 1854 and 1959 as the top two regardless, so no synonym is required. The 66 records carrying a period abbreviation (`data/exploration.md` A1.4) may still deserve one, but no test demands it. | **pass** |
 
 ## 3. Concatenated name
 
-| id | query | ctx | expectation | status |
+| id | query | journey | expectation | status |
 |---|---|---|---|---|
-| K13 | `ilforno` | AC+IS | 112282 (New York) and 3912 (Santa Monica) returned. | **pass** |
-| K14 | `leftbank` | AC+IS | 65758 `Left Bank` (New York) rank 1, ahead of 2115 `Left Bank Santana Row` and 15421 `Left Bank Restaurant` — exact base name beats a longer name containing it. | **accepted** — rank 2 of 4, and all three `Left Bank` records hold the top three. Every candidate scores `exact=0`: a concatenated query earns no exact match anywhere, so popularity decides. No settings lever exists, and the name-length tie-break has the wrong shape — placed before `popularity_score` it would reorder broad queries such as `italian` by name length, placed after it would never fire. A user typing `leftbank` has not disambiguated between the three. |
-| K15 | `roaringfork` | AC+IS | 5545 rank 1. | **pass** |
-| K16 | `montblanc` | AC+IS | 60130 `Mont Blanc` (New York) rank 1. | **pass** |
+| K13 | `ilforno` | P1 | 112282 (New York) and 3912 (Santa Monica) returned. | **pass** |
+| K14 | `leftbank` | P1 | 65758 `Left Bank` (New York) rank 1, ahead of 2115 `Left Bank Santana Row` and 15421 `Left Bank Restaurant` — exact base name beats a longer name containing it. | **accepted** — rank 2 of 4, and all three `Left Bank` records hold the top three. Every candidate scores `exact=0`: a concatenated query earns no exact match anywhere, so popularity decides. No settings lever exists, and the name-length tie-break has the wrong shape — placed before `popularity_score` it would reorder broad queries such as `italian` by name length, placed after it would never fire. A user typing `leftbank` has not disambiguated between the three. |
+| K15 | `roaringfork` | P1 | 5545 rank 1. | **pass** |
+| K16 | `montblanc` | P1 | 60130 `Mont Blanc` (New York) rank 1. | **pass** |
 
 614 two-short-word names carry this risk (`data/exploration.md` A1.6). These four are
 the check. Correction to an earlier assumption: **no index setting addresses this.**
@@ -358,81 +358,81 @@ these four names; if it is not, the remedy is synonyms, not a setting.
 
 ## 4. Partial name
 
-The autocomplete case: the user stops typing early.
+Search-as-you-type: the user stops typing early and the results must already be useful.
 
-| id | query | ctx | expectation | status |
+| id | query | journey | expectation | status |
 |---|---|---|---|---|
-| K17 | `ruth` | AC | The 31 Ruth's Chris records. In the dropdown they must be collapsed or disambiguated by `location_label` — 31 near-identical rows is a dead end, not a suggestion list. | **pass** |
-| K18 | `cyclone` | AC | The 5 `Cyclone Anaya's` records, all in Houston, each showing a distinct location. | **fail** — 5 hits but only 4 distinct `location_label` values — 145366 and 151276 both read `Midtown / Montrose`. Both carry `location_label_ambiguous: true`, so the signal exists and this becomes a UI obligation. See the second run above. |
-| K19 | `pappas` | AC | 1959 and 1854 in the top 2. | **pass** |
-| K20 | `melting` | AC | The 26 Melting Pot records, disambiguated by location. | **pass** |
+| K17 | `ruth` | P1 | The 31 Ruth's Chris records, disambiguated by `location_label`. 31 near-identical rows is a dead end; distinct labels are what make the list navigable. | **pass** |
+| K18 | `cyclone` | P1 | The 5 `Cyclone Anaya's` records, all in Houston, each showing a distinct location. | **fail** — 5 hits but only 4 distinct `location_label` values — 145366 and 151276 both read `Midtown / Montrose`. Both carry `location_label_ambiguous: true`, so the signal exists and this becomes a UI obligation. See the second run above. |
+| K19 | `pappas` | P1 | 1959 and 1854 in the top 2. | **pass** |
+| K20 | `melting` | P1 | The 26 Melting Pot records, disambiguated by location. | **pass** |
 
 ## 5. Cuisine
 
 Persona 2. Tests that the normalised taxonomy in `scripts/cuisine-taxonomy.json`
 behaves as a facet rather than as free text.
 
-| id | query | ctx | expectation | status |
+| id | query | journey | expectation | status |
 |---|---|---|---|---|
-| D1 | `steakhouse` | IS | Returns the 486 records under primary cuisine `Steakhouse`. Critically, `Steak` (123) and `Steakhouse` (328) must not appear as two separate refinements — that merge is the whole point of the taxonomy. | **pass** |
-| D2 | `fondue` | IS | The 30 `Fondue` records. 26 of them are Melting Pot locations, so the result set is legitimately chain-dominated; the UI must not read as broken because of it. | **pass** |
-| D3 | `thai` | IS | The 25 `Thai` records. | **pass** |
-| D4 | `vietnamese` | IS | 22558 `Indochine` and 2527 `Three Seasons` returned. Both were folded into primary cuisine `Asian` with a `Vietnamese` tag — this case verifies the fold did not make the term unsearchable. | **pass** |
-| D5 | `churrascaria` | IS | The 33 `Brazilian Steakhouse` records. They sit under primary `Steakhouse` with a `Churrascaria` tag; the term appears nowhere in the source `food_type` values, only in the taxonomy tags. | **pass** |
-| D6 | `sushi` | IS | **⚠ contested by design.** 72 records carry "sushi" in the *name* while 67 have `food_type: Sushi` and 140 `Japanese`. With `unordered(name)` first in `searchableAttributes`, the 72 name-matches outrank the cuisine matches. That is correct for persona 1 and wrong for persona 2. Resolution: the AC dropdown ranks name-matches first; the IS page must surface a `cuisine: Japanese` refinement prominently instead of reordering. Recorded here so the trade-off is deliberate, not accidental. | **pass** |
+| D1 | `steakhouse` | P2 | Returns the 486 records under primary cuisine `Steakhouse`. Critically, `Steak` (123) and `Steakhouse` (328) must not appear as two separate refinements — that merge is the whole point of the taxonomy. | **pass** |
+| D2 | `fondue` | P2 | The 30 `Fondue` records. 26 of them are Melting Pot locations, so the result set is legitimately chain-dominated; the UI must not read as broken because of it. | **pass** |
+| D3 | `thai` | P2 | The 25 `Thai` records. | **pass** |
+| D4 | `vietnamese` | P2 | 22558 `Indochine` and 2527 `Three Seasons` returned. Both were folded into primary cuisine `Asian` with a `Vietnamese` tag — this case verifies the fold did not make the term unsearchable. | **pass** |
+| D5 | `churrascaria` | P2 | The 33 `Brazilian Steakhouse` records. They sit under primary `Steakhouse` with a `Churrascaria` tag; the term appears nowhere in the source `food_type` values, only in the taxonomy tags. | **pass** |
+| D6 | `sushi` | P2 | **⚠ contested by design.** 72 records carry "sushi" in the *name* while 67 have `food_type: Sushi` and 140 `Japanese`. With `unordered(name)` first in `searchableAttributes`, the 72 name-matches outrank the cuisine matches. That is correct for persona 1 and wrong for persona 2. Resolution: name-matches rank first, and the page must surface a `cuisine: Japanese` refinement prominently instead of reordering. Recorded here so the trade-off is deliberate, not accidental. | **pass** |
 
 ## 6. Ambiguous term
 
 The hardest section. Every case is a real collision measured in `data/exploration.md` A3.
 
-| id | query | ctx | expectation | status |
+| id | query | journey | expectation | status |
 |---|---|---|---|---|
-| A1 | `rye` | AC+IS | 95884 (Leawood, KS) and 105424 (Brooklyn, NY) — the two restaurants *named* Rye — rank above any restaurant merely located in Rye or in a neighborhood called Rye. Must also not be displaced by 95284 `Roe` (Portland), which is one character away. The densest single test case in the corpus: homonym, place collision, and typo neighbour at once. | **pass** |
-| A2 | `prime` | AC+IS | 117067 `Prime` (Mansfield, TX) rank 1 as the exact name match — **even though its own `food_type` is Mexican**. Below it: 4941 and 27409 `Prime Steakhouse`, then 145747 / 144688 `Prime 47`, then the 486 `Steakhouse` cuisine matches. A name match must never lose to a cuisine match. | **pass** — after removing `chain_name` from `searchableAttributes` on 2026-09-03. 90916 had been scoring `exact=1` through `chain_name: "Prime"`, cancelling the real name match. |
-| A3 | `naya` | AC+IS | 148411 `Naya` (Pittsburgh) rank 1. Three competing readings must lose to it: 79378 `Kaya` (**also Pittsburgh**, edit distance 1, so geo cannot separate them either) and the 5 `Cyclone Anaya's` Houston records, which contain "naya" as a substring. **⚠ prediction refuted 2026-09-03** — flagged as the likeliest way to break persona 1 with typo tolerance. 148411 ranks 1 of 31 hits with the thresholds unchanged; A4 holds in the mirror direction. | **pass** |
-| A4 | `kaya` | AC+IS | The mirror of A3: 79378 `Kaya` rank 1, above 148411 `Naya`. Both directions must hold; fixing one at the cost of the other is not a fix. | **pass** |
-| A5 | `santa fe` | AC+IS | 65881 `Santa Fe` (a restaurant in **New York**) ranks above the restaurants located in Santa Fe, NM (e.g. 61711 `Raaga`, 3267 `Geronimo`). Its own cuisine is `Mexican / Southwestern`, which makes the term triply ambiguous: name, city, cuisine. | **accepted** — rank 2 of 41. `santa fe` is a two-word query, so `exactOnSingleWordQuery` does not apply and every candidate scores `exact=2`; no criterion discriminates and popularity decides (4.376 against 4.218). The case is over-specified: `santa fe` is far more often a place than a restaurant name, and two of the top three genuinely are in Santa Fe. |
-| A6 | `union` | AC+IS | 145234 (Pasadena, Contemporary Italian) and 116815 (Mobile, Steakhouse) rank above the records in the `Union Square` neighborhood. | **pass** |
-| A7 | `bistro` | AC+IS | 100624 `Bistro` (Jupiter, FL) rank 1 — the only name in the corpus identical to a full `food_type` value. Its own cuisine is Contemporary American; the `Bistro` food_type maps to primary `French`. | **accepted** — rank 2 of 210. Both 100624 and 5014 score `exact=1`; 5014 earns it through `cuisine_tags: ["Bistro"]`. Removing that tag would fix the case but make 10105 `7 on Fulton` and 72718 `Acme` unreachable by `bistro` — neither carries the word in its name, so the tag does real work. Only 2 of 128 taxonomy values collide with an exact restaurant name (`Bistro`, `Small Plates`), so the cost is narrow and enumerable. A French bistro with 1,638 reviews above a restaurant named `Bistro` with 317 is not obviously wrong for a word that is more often a category than a name. |
-| A8 | `babylon` | AC+IS | 70969 `Babylon` (Raleigh, NC, Moroccan) ranks above records in Babylon, NY. | **pass** |
+| A1 | `rye` | P1 | 95884 (Leawood, KS) and 105424 (Brooklyn, NY) — the two restaurants *named* Rye — rank above any restaurant merely located in Rye or in a neighborhood called Rye. Must also not be displaced by 95284 `Roe` (Portland), which is one character away. The densest single test case in the corpus: homonym, place collision, and typo neighbour at once. | **pass** |
+| A2 | `prime` | P1 | 117067 `Prime` (Mansfield, TX) rank 1 as the exact name match — **even though its own `food_type` is Mexican**. Below it: 4941 and 27409 `Prime Steakhouse`, then 145747 / 144688 `Prime 47`, then the 486 `Steakhouse` cuisine matches. A name match must never lose to a cuisine match. | **pass** — after removing `chain_name` from `searchableAttributes` on 2026-09-03. 90916 had been scoring `exact=1` through `chain_name: "Prime"`, cancelling the real name match. |
+| A3 | `naya` | P1 | 148411 `Naya` (Pittsburgh) rank 1. Three competing readings must lose to it: 79378 `Kaya` (**also Pittsburgh**, edit distance 1, so geo cannot separate them either) and the 5 `Cyclone Anaya's` Houston records, which contain "naya" as a substring. **⚠ prediction refuted 2026-09-03** — flagged as the likeliest way to break persona 1 with typo tolerance. 148411 ranks 1 of 31 hits with the thresholds unchanged; A4 holds in the mirror direction. | **pass** |
+| A4 | `kaya` | P1 | The mirror of A3: 79378 `Kaya` rank 1, above 148411 `Naya`. Both directions must hold; fixing one at the cost of the other is not a fix. | **pass** |
+| A5 | `santa fe` | P1 | 65881 `Santa Fe` (a restaurant in **New York**) ranks above the restaurants located in Santa Fe, NM (e.g. 61711 `Raaga`, 3267 `Geronimo`). Its own cuisine is `Mexican / Southwestern`, which makes the term triply ambiguous: name, city, cuisine. | **accepted** — rank 2 of 41. `santa fe` is a two-word query, so `exactOnSingleWordQuery` does not apply and every candidate scores `exact=2`; no criterion discriminates and popularity decides (4.376 against 4.218). The case is over-specified: `santa fe` is far more often a place than a restaurant name, and two of the top three genuinely are in Santa Fe. |
+| A6 | `union` | P1 | 145234 (Pasadena, Contemporary Italian) and 116815 (Mobile, Steakhouse) rank above the records in the `Union Square` neighborhood. | **pass** |
+| A7 | `bistro` | P1 | 100624 `Bistro` (Jupiter, FL) rank 1 — the only name in the corpus identical to a full `food_type` value. Its own cuisine is Contemporary American; the `Bistro` food_type maps to primary `French`. | **accepted** — rank 2 of 210. Both 100624 and 5014 score `exact=1`; 5014 earns it through `cuisine_tags: ["Bistro"]`. Removing that tag would fix the case but make 10105 `7 on Fulton` and 72718 `Acme` unreachable by `bistro` — neither carries the word in its name, so the tag does real work. Only 2 of 128 taxonomy values collide with an exact restaurant name (`Bistro`, `Small Plates`), so the cost is narrow and enumerable. A French bistro with 1,638 reviews above a restaurant named `Bistro` with 317 is not obviously wrong for a word that is more often a category than a name. |
+| A8 | `babylon` | P1 | 70969 `Babylon` (Raleigh, NC, Moroccan) ranks above records in Babylon, NY. | **pass** |
 
 ## 7. Multi-location chain
 
 Section 3 of CLAUDE.md previously called same-city ambiguity unreproducible. It is
 reproducible on 43 base names, 50 clusters, 111 records. These are the cases.
 
-| id | query | ctx | expectation | status |
+| id | query | journey | expectation | status |
 |---|---|---|---|---|
-| C1 | `cyclone anaya's`, geo = Houston | AC+IS | All 5 records returned (145369 CityCentre, 145366 Midtown, 151276 Rice Village, 145381 Woodway, 145375 Durham), each with a **distinct** `location_label`. The flagship same-city case. Note 145366 and 151276 share `neighborhood: Midtown / Montrose`, so neighborhood alone is insufficient for two of the five — distance must complete the label. | **pass** |
-| C2 | `fleming's scottsdale` | AC+IS | 40036 and 39919 both returned and distinguishable. Both carry `neighborhood: Scottsdale`, so `location_label` **must** fall through to city + distance. If both rows render identically, the case fails regardless of ranking. | **pass** |
-| C3 | `mccormick pittsburgh` | AC+IS | 6794 (`Pittsburgh South Side`) and 13990 (`Pittsburgh Downtown`) both returned. Both carry `neighborhood: Downtown` despite the names claiming different areas — the name suffix and the neighborhood field disagree, and the label must not silently pick the wrong one. | **pass** |
-| C4 | `ruth's chris indianapolis` | AC+IS | 5000 (`Downtown Indy`) and 5211 (`Castleton / Keystone Crossings`) both returned, ranked above the other 29 locations. Here neighborhood *does* separate them. | **pass** |
-| C5 | `pappas bros`, geo = Dallas | IS | 1959 (Dallas) ranks above 1854 (Houston) on the geo-led page. Both sit in `market: Dallas - Fort Worth`, so a market facet does **not** separate them — only `city` or distance does. | **pass** |
-| C6 | `tien` | AC+IS | 11437 and 11434, both in Biloxi, both `neighborhood: Biloxi`. Their suffixes are `Teppanyaki / Shabu Shabu` and `Traditional Asian Dining` — **not locations**. Tests that `chain_name` derivation did not blindly split on the separator and label a cuisine descriptor as a place. | **pass** |
+| C1 | `cyclone anaya's`, geo = Houston | P1 | All 5 records returned (145369 CityCentre, 145366 Midtown, 151276 Rice Village, 145381 Woodway, 145375 Durham), each with a **distinct** `location_label`. The flagship same-city case. Note 145366 and 151276 share `neighborhood: Midtown / Montrose`, so neighborhood alone is insufficient for two of the five — distance must complete the label. | **pass** |
+| C2 | `fleming's scottsdale` | P1 | 40036 and 39919 both returned and distinguishable. Both carry `neighborhood: Scottsdale`, so `location_label` **must** fall through to city + distance. If both rows render identically, the case fails regardless of ranking. | **pass** |
+| C3 | `mccormick pittsburgh` | P1 | 6794 (`Pittsburgh South Side`) and 13990 (`Pittsburgh Downtown`) both returned. Both carry `neighborhood: Downtown` despite the names claiming different areas — the name suffix and the neighborhood field disagree, and the label must not silently pick the wrong one. | **pass** |
+| C4 | `ruth's chris indianapolis` | P1 | 5000 (`Downtown Indy`) and 5211 (`Castleton / Keystone Crossings`) both returned, ranked above the other 29 locations. Here neighborhood *does* separate them. | **pass** |
+| C5 | `pappas bros`, geo = Dallas | P2 | 1959 (Dallas) ranks above 1854 (Houston) on the geo-led page. Both sit in `market: Dallas - Fort Worth`, so a market facet does **not** separate them — only `city` or distance does. | **pass** |
+| C6 | `tien` | P1 | 11437 and 11434, both in Biloxi, both `neighborhood: Biloxi`. Their suffixes are `Teppanyaki / Shabu Shabu` and `Traditional Asian Dining` — **not locations**. Tests that `chain_name` derivation did not blindly split on the separator and label a cuisine descriptor as a place. | **pass** |
 
 ## 8. Empty query
 
 Persona 2's entry point. CLAUDE.md section 2: the empty state must be a destination,
 not a dead end.
 
-| id | case | ctx | expectation | status |
+| id | case | journey | expectation | status |
 |---|---|---|---|---|
-| E1 | empty query, geolocation granted | IS | Curated entry points render, plus geo-aware results. The UI states which location is in use. Never a blank screen. | **blocked** — describes UI behaviour; no front end exists yet. |
-| E2 | empty query, default ranking | IS | Top 20 by `popularity_score` are plausible institutions, per the section 4 calibration check. Measured on the extract with `m = 50`, `C = 4.2941`: the list includes 2767 `Mama's Fish House` (12,669 reviews), 3934 `GW Fins` (5,523) and 4487 `Restaurant August` (4,668), alongside three 5.0-star records with 139–242 reviews (31153, 5062 `Pazza Notte`, 78970 `Embers Steakhouse`). Those three are not thin-review artefacts — E4 shows the prior handles that tail correctly — so whether they belong in a top 20 is a judgment call on `m`, not a defect. Raising `m` is a settings change and gets a change-log line. | **pass** |
-| E3 | empty query, geolocation denied | IS | Falls back to `aroundLatLngViaIP`, then to a default metro, and **tells the user which** — per section 5, never leave the user geo-blocked or the results unexplained. | **blocked** — describes UI behaviour; no front end exists yet. |
-| E4 | empty query, ranking sanity | IS | 154318 `Ellen's Cafe` (5.0 stars, **1 review**) must not appear on the first screen. Exactly 21 records hold a 5.0, of which **18 have fewer than 50 reviews and 8 fewer than 10** — so `desc(stars_count)` alone would fill the entire first page from that pool, whatever the tie-break. With `m = 50` the Bayesian average drops 154318 to rank 2414 of 5000 and the other seven thin records to ranks 1523–2404. That gap is the justification for the prior. | **pass** |
+| E1 | empty query, geolocation granted | P2 | Curated entry points render, plus geo-aware results. The UI states which location is in use. Never a blank screen. | **blocked** — describes UI behaviour; no front end exists yet. |
+| E2 | empty query, default ranking | P2 | Top 20 by `popularity_score` are plausible institutions, per the section 4 calibration check. Measured on the extract with `m = 50`, `C = 4.2941`: the list includes 2767 `Mama's Fish House` (12,669 reviews), 3934 `GW Fins` (5,523) and 4487 `Restaurant August` (4,668), alongside three 5.0-star records with 139–242 reviews (31153, 5062 `Pazza Notte`, 78970 `Embers Steakhouse`). Those three are not thin-review artefacts — E4 shows the prior handles that tail correctly — so whether they belong in a top 20 is a judgment call on `m`, not a defect. Raising `m` is a settings change and gets a change-log line. | **pass** |
+| E3 | empty query, geolocation denied | P2 | Falls back to `aroundLatLngViaIP`, then to a default metro, and **tells the user which** — per section 5, never leave the user geo-blocked or the results unexplained. | **blocked** — describes UI behaviour; no front end exists yet. |
+| E4 | empty query, ranking sanity | P2 | 154318 `Ellen's Cafe` (5.0 stars, **1 review**) must not appear on the first screen. Exactly 21 records hold a 5.0, of which **18 have fewer than 50 reviews and 8 fewer than 10** — so `desc(stars_count)` alone would fill the entire first page from that pool, whatever the tie-break. With `m = 50` the Bayesian average drops 154318 to rank 2414 of 5000 and the other seven thin records to ranks 1523–2404. That gap is the justification for the prior. | **pass** |
 
 ## 9. Out-of-corpus query
 
 Verified absent across `name`, `address`, `city`, `state`, `area`, `neighborhood`,
 `food_type` and `postal_code` — not just name.
 
-| id | query | ctx | expectation | status |
+| id | query | journey | expectation | status |
 |---|---|---|---|---|
-| O1 | `momofuku` | AC+IS | 0 results, with an empty state that says so and offers a route back to browsing. Silent junk is worse than zero. | **pass** |
-| O2 | `olive garden` | AC+IS | **⚠ predicted fail, confirmed 2026-09-03 (6 hits).** Truly absent, but under `removeWordsIfNoResults: lastWords` dropping `garden` leaves `olive`, which matches 6 records (100042 `Olive Press`, 56608 `Olivette`, 111679 `Olive Lucy's Kitchen Table`, 5292 `Bleu Olive`, …). The user asked for a chain and gets unrelated restaurants presented as answers. This is the motivating case for evaluating `allOptional` versus `lastWords` per section 5. | **fail** — 6 hits, not 0 — 110344 `Olive B's Big Sky`, 5292 `Bleu Olive`, 111679 `Olive Lucy's Kitchen Table`. Root cause in the baseline run above. |
-| O3 | `shake shack` | AC+IS | 0 results. Also absent, but the fallback is harmless here: `shake` matches 0 names, so stripping the last word still yields nothing. Contrast with O2 — the same setting is safe on one query and harmful on the other, which is why the choice needs a case, not a preference. | **fail** — 10 hits after `address` was removed on 2026-09-03 (previously 1 hit, through `address`). With `removeWordsIfNoResults: 'none'` it returns 0, so the remaining leak is word removal, exactly as for O2 and O4. |
-| O4 | `sushi in tokyo` | IS | Must not silently return every sushi restaurant in the US. `tokyo` is absent from the corpus entirely; the response must make clear the location constraint could not be honoured. | **fail** — 1 hit, not 0 — 41962 `In the Raw - Bricktown`, matched on the token `in`. Root cause in the baseline run above. |
+| O1 | `momofuku` | P1 | 0 results, with an empty state that says so and offers a route back to browsing. Silent junk is worse than zero. | **pass** |
+| O2 | `olive garden` | P1 | **⚠ predicted fail, confirmed 2026-09-03 (6 hits).** Truly absent, but under `removeWordsIfNoResults: lastWords` dropping `garden` leaves `olive`, which matches 6 records (100042 `Olive Press`, 56608 `Olivette`, 111679 `Olive Lucy's Kitchen Table`, 5292 `Bleu Olive`, …). The user asked for a chain and gets unrelated restaurants presented as answers. This is the motivating case for evaluating `allOptional` versus `lastWords` per section 5. | **fail** — 6 hits, not 0 — 110344 `Olive B's Big Sky`, 5292 `Bleu Olive`, 111679 `Olive Lucy's Kitchen Table`. Root cause in the baseline run above. |
+| O3 | `shake shack` | P1 | 0 results. Also absent, but the fallback is harmless here: `shake` matches 0 names, so stripping the last word still yields nothing. Contrast with O2 — the same setting is safe on one query and harmful on the other, which is why the choice needs a case, not a preference. | **fail** — 10 hits after `address` was removed on 2026-09-03 (previously 1 hit, through `address`). With `removeWordsIfNoResults: 'none'` it returns 0, so the remaining leak is word removal, exactly as for O2 and O4. |
+| O4 | `sushi in tokyo` | P2 | Must not silently return every sushi restaurant in the US. `tokyo` is absent from the corpus entirely; the response must make clear the location constraint could not be honoured. | **fail** — 1 hit, not 0 — 41962 `In the Raw - Bricktown`, matched on the token `in`. Root cause in the baseline run above. |
 
 ## 10. Geo — the known-item / proximity conflict
 
@@ -440,12 +440,12 @@ Section 5's resolution, tested on real records. `Nobu` **is** in the corpus (5
 locations) and **none is in Denver**, which makes CLAUDE.md's own example directly
 testable rather than hypothetical.
 
-| id | query | ctx | expectation | status |
+| id | query | journey | expectation | status |
 |---|---|---|---|---|
-| G1 | `nobu`, geo = Denver (39.7343, -104.9794) | AC | 4524 `Nobu Fifty Seven` (New York), 13129 `Nobu Waikiki`, 16927 `Nobu San Diego` and 99796 `Nobu Lanai` rank above **every** Denver restaurant. Note the premise was overstated when written: measured on 2026-09-03, sending geo on this query still returns only the 18 records matching `nobu` and no Denver restaurant enters at all, because `geo` reorders matches rather than filtering. The case passes with or without geo; what geo actually costs is A1, A2 and A6. | **pass** |
-| G2 | `nobu`, geo = Denver | AC | 74146 `Nobuo at Teeter House` (Phoenix) and 75256 `Mitsunobu` (Menlo Park) rank **below** the four true Nobu locations. Tests that prefix and substring matches do not outrank the exact brand. | **accepted** — 74146 at rank 2. `exactOnSingleWordQuery: "word"` fixes it exactly — all four Nobu score `exact=1`, Nobuo scores 0 — but measured at query time it breaks A2 (`prime` gives Bohanan's), A7 (`bistro` gives Costa Brava) and A8 (`babylon` gives Babylon Turkish). Net −2, so it is not applied. Rank 1 is a real Nobu and ranks 3–5 are the other three; rank 2 is a Japanese restaurant whose name genuinely begins with `Nobu`, plausibly what the user was typing. |
-| G3 | `italian`, geo = Denver | IS | Geo leads. Denver-area Italian restaurants first, but `aroundPrecision` buckets must be coarse enough that `popularity_score` breaks ties inside a bucket — a marginally closer mediocre restaurant must not outrank an excellent one two streets further. | **pass** — after restoring `geo` to position 2 on 2026-09-03. All 10 top hits in Denver, first Denver record at position 1 (was 89 of 895), and popularity strictly decreasing inside the bucket: 4.688, 4.590, 4.589, 4.589, 4.497. |
-| G4 | `cyclone anaya's`, geo = Pittsburgh (40.4491, -79.9939) | AC | All 5 Houston records still returned, ~1,900 km away. A known-item query must not be filtered by proximity, only ordered by it as a tie-break. | **pass** |
+| G1 | `nobu`, geo = Denver (39.7343, -104.9794) | P1 | 4524 `Nobu Fifty Seven` (New York), 13129 `Nobu Waikiki`, 16927 `Nobu San Diego` and 99796 `Nobu Lanai` rank above **every** Denver restaurant. Note the premise was overstated when written: measured on 2026-09-03, sending geo on this query still returns only the 18 records matching `nobu` and no Denver restaurant enters at all, because `geo` reorders matches rather than filtering. The case passes with or without geo; what geo actually costs is A1, A2 and A6. | **pass** |
+| G2 | `nobu`, geo = Denver | P1 | 74146 `Nobuo at Teeter House` (Phoenix) and 75256 `Mitsunobu` (Menlo Park) rank **below** the four true Nobu locations. Tests that prefix and substring matches do not outrank the exact brand. | **accepted** — 74146 at rank 2. `exactOnSingleWordQuery: "word"` fixes it exactly — all four Nobu score `exact=1`, Nobuo scores 0 — but measured at query time it breaks A2 (`prime` gives Bohanan's), A7 (`bistro` gives Costa Brava) and A8 (`babylon` gives Babylon Turkish). Net −2, so it is not applied. Rank 1 is a real Nobu and ranks 3–5 are the other three; rank 2 is a Japanese restaurant whose name genuinely begins with `Nobu`, plausibly what the user was typing. |
+| G3 | `italian`, geo = Denver | P2 | Geo leads. Denver-area Italian restaurants first, but `aroundPrecision` buckets must be coarse enough that `popularity_score` breaks ties inside a bucket — a marginally closer mediocre restaurant must not outrank an excellent one two streets further. | **accepted** — the index does this correctly and the app deliberately does not ask for it. Sent geo, the query returns all ten top hits in Denver with popularity strictly decreasing inside the bucket (4.688, 4.590, 4.589, 4.589, 4.497). But `italian` is a *typed* query, and since the single-surface rewrite geo parameters are sent only while the query is empty — otherwise `Ocean Prime - Denver` displaces 117067 `Prime` and A1, A2 and A6 fail. One discovery case traded for three known-item cases. Recovering it needs proximity as an explicit user control; see open question 10. |
+| G4 | `cyclone anaya's`, geo = Pittsburgh (40.4491, -79.9939) | P1 | All 5 Houston records still returned, ~1,900 km away. A known-item query must not be filtered by proximity, only ordered by it as a tie-break. | **pass** |
 
 ---
 
@@ -466,6 +466,7 @@ unattributable. A change with no motivating case does not belong here.
 | 2026-09-03 | `removeStopWords` — **evaluated, not applied** | `false` → `true` | O4 `sushi in tokyo` | **Nothing.** O4 returns 0 with word removal disabled, so the token `in` was never its cause. | **Regresses the sharpest case in the corpus.** `the smith` goes from 4 hits to 16 and 19258 `The Smith - East Village` falls out of the top 3, displaced by `Smithfields` and `Butera's Restaurant of Smithtown`. Adds tail noise on `in the raw` and `the capital grille`. `false` is kept. |
 | 2026-09-03 | `searchableAttributes` — removed `address` | 4 levels → 3 | no stated pain requires street search (§1), plus measured noise | **Precision, on 9 of 50 cases.** `Cafe 21` 7 hits → exactly the 2 real records; `kaya` 67 → 40, shedding 27 Waikiki restaurants on Kalakaua Avenue; `thai` 76 → 45, shedding 31 on Third Street; `union` 57 → 42; `tien` 47 → 38; `naya` 31 → 28. | **0 status changes**, 42/50 either way. O3 went from 1 hit to 10 — its leak reverted from `address` to `lastWords`. Street search is gone: 110 records were reachable only via `address` on `Main Street`, 92 on `Broadway`, 139 on `park`. |
 | 2026-09-03 | **architecture** — one shared parameter set instead of two (**evaluated, not applied**) | `knownItemParams` + `discoveryParams` → one set, geo on every query | the proposal to serve both personas from the results page alone | Simpler: one set, no separation to police. Geo also *helps* chain queries — from Denver, `ruths chris` puts Ruth's Chris Denver first, `benihanna` puts Benihana Denver first, `pappas bros` puts Dallas ahead of Houston. | **42/50 → 38/50.** A1 `rye`, A2 `prime` and A6 `union` all fail: the nearer record that also matches the word displaces the exact name — `Ocean Prime - Denver` (2 km) beats 117067 `Prime` (1,062 km), `Barley & Rye` beats `Rye`, `Workshop at UNION` beats `Union`. E2 also flips, but that one is a case artefact: its top-20 expectation was written for a geo-less default. Two sets kept; the **library** was collapsed to one instead. |
+| 2026-09-03 | **architecture** — the suggestion dropdown removed; geo now gated on an empty query | two surfaces, two parameter sets → one surface, one set plus a conditional geo half | the dropdown showed the same records the page already showed, one keystroke earlier | A whole surface and its recent-searches feature removed, neither tied to a stated pain (§1). One parameter set, one state model. The empty query keeps geo and lands well: from Denver the top eight are all Denver restaurants rated 4.7–4.8 with 290–3,481 reviews. Typed queries keep A1 `rye`, A2 `prime`, A6 `union` and G1 `nobu`. | **G3 regresses to `accepted`.** `italian` is a typed query, so it no longer receives geo and returns Memphis and Orlando rather than Denver. The index still does it correctly when asked — the app deliberately does not ask. 42 pass → 41 pass, 4 accepted → 5. |
 
 The initial configuration in `scripts/settings.json` was pushed unchanged, so this row
 records a baseline rather than a change. Every row after it must name one setting, the
@@ -501,17 +502,23 @@ Recorded now so they are not quietly forgotten once results start coming in.
 3. **`address` in `searchableAttributes`.** It is the sole cause of O3 and it is listed
    in CLAUDE.md §5. Removing it closes the leak and removes street search, which no
    stated pain requires but which is a plausible expectation.
-4. **`lastWords`, `allOptional` or `none`?** Now the highest-value open question, and
+4. **Should proximity be an explicit user control?** The empty-query-only rule buys A1,
+   A2 and A6 at the cost of G3: a cuisine query from a location gets no geo, which is
+   what §5 asks discovery to lead with. A single "nearest first" toggle would recover it
+   and would satisfy §5's "tell the user which location is in use" more honestly than any
+   implicit rule, since the user would be choosing. It is one control, not a surface —
+   but no reported pain names it, so it is a question rather than a plan.
+5. **`lastWords`, `allOptional` or `none`?** Now the highest-value open question, and
    the evidence has sharpened: with `removeWordsIfNoResults: 'none'` **all four
    out-of-corpus queries return 0**, so this one setting closes O2, O3 and O4 together.
    The cost is unmeasured and is the whole question — `none` means a query carrying one
    unmatched word returns nothing at all, which is exactly the forgiveness persona 1
    needs. `allOptional` sits between the two. Must be measured against all 42 passing
    cases before adoption, not just the three failures.
-5. **D6 (`sushi`)** — not yet run. Confirm the split resolution holds: name-first in the
-   dropdown, cuisine refinement on the page. If persona 2 users still cannot reach the
-   67 `Sushi` records, the answer is a UI change, not a ranking change.
-6. **E2** — not yet run. Is `m = 50` right? Three of the top 20 are 5.0-star records
+6. **D6 (`sushi`)** — measured as passing, but the resolution is a UI obligation rather
+   than a ranking one: name-matches lead and the `cuisine: Japanese` refinement has to be
+   prominent enough that persona 2 reaches the 67 `Sushi` records through it.
+7. **E2** — not yet run. Is `m = 50` right? Three of the top 20 are 5.0-star records
    with 139–242 reviews. The thin tail is handled (E4), so this is a calibration
    judgment, not a bug.
 7. ~~**Where does `geo` belong in `ranking`?**~~ **Answered and applied 2026-09-03:**
@@ -520,11 +527,11 @@ Recorded now so they are not quietly forgotten once results start coming in.
    replaces this as a live risk is narrower: the known-item journey is now protected only
    by sending no geo parameter, so `src/searchParams.js` must keep the two contexts'
    parameters apart or G1 regresses.
-8. **K18 and the ambiguous label.** The index side is correct and both colliding records
+9. **K18 and the ambiguous label.** The index side is correct and both colliding records
    carry `location_label_ambiguous: true`. The case cannot pass until the front end
    appends distance where the flag is set, which makes it the first hard requirement the
    UI inherits from the data model rather than from a design preference.
-9. **The two missed chain members.** 70261 and 150577 carry a hyphen with no surrounding
+10. **The two missed chain members.** 70261 and 150577 carry a hyphen with no surrounding
    whitespace and never join their chains. Relaxing the whitespace guard would catch them
    and wrongly split 46 genuinely hyphenated names, so the guard stays; the question is
    whether to special-case two records or accept the gap and correct the documented

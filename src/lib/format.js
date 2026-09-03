@@ -9,10 +9,9 @@ const EARTH_RADIUS_MILES = 3958.8;
 const toRadians = (deg) => (deg * Math.PI) / 180;
 
 /**
- * Great-circle distance in miles. Used for *display only* on the known-item journey,
- * which deliberately sends no geo parameter to Algolia — see `searchParams.js`. Computing
- * it here is what lets distance reach the dropdown without letting proximity into the
- * ranking.
+ * Great-circle distance in miles. Used for *display only*: a typed query deliberately
+ * sends no geo parameter to Algolia (see `searchParams.js`), so computing distance here
+ * is what lets it reach the result card without letting proximity into the ranking.
  */
 export function distanceMiles(from, to) {
   if (!from || !to) return null;

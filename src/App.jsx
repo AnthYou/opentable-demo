@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  Autocomplete,
   ClearRefinements,
   Configure,
   CurrentRefinements,
@@ -8,15 +7,15 @@ import {
   InstantSearch,
   Pagination,
   RefinementList,
+  SearchBox,
   SortBy,
   Stats,
   useInstantSearch,
 } from 'react-instantsearch';
 
 import { searchClient, indexName, sortOptions } from './searchClient.js';
-import { discoveryParams, discoveryGeoParams, knownItemParams, DEFAULT_METRO } from './searchParams.js';
+import { searchParams, browseGeoParams, DEFAULT_METRO } from './searchParams.js';
 import { Hit } from './components/Hit.jsx';
-import { SuggestionItem } from './autocomplete/SuggestionItem.jsx';
 import './App.css';
 
 /**
@@ -56,14 +55,26 @@ function useGeoPosition() {
 
 /**
  * §5: "tell the user which location is in use so the results are never unexplained."
- * `discoveryGeoParams` returns the label precisely so this can never be skipped.
+ * `browseGeoParams` returns the label precisely so this can never be skipped.
+ *
+ * Two states to explain, not one. While browsing, proximity is ranking the results and
+ * the user needs to know from where. Once they type, location stops ranking and saying
+ * otherwise would be a lie — so the banner says which signal is in charge.
  */
-function GeoBanner({ status, label }) {
+function GeoBanner({ status, label, browsing }) {
+  if (!browsing) {
+    return (
+      <p className="geo-banner" role="status">
+        Ranked by how well each restaurant matches what you typed. Distance is shown, not ranked.
+      </p>
+    );
+  }
+
   const explanation = {
     pending: 'Finding your location…',
-    granted: `Sorted by distance from ${label}.`,
-    denied: `Location access declined, so results use ${label} from your network.`,
-    unavailable: `Your browser cannot share a location, so results use ${DEFAULT_METRO.label}.`,
+    granted: `Showing restaurants near ${label}, best rated first.`,
+    denied: `Location access declined, so these are near ${label} from your network.`,
+    unavailable: `Your browser cannot share a location, so these are near ${DEFAULT_METRO.label}.`,
   }[status];
 
   return (
@@ -83,6 +94,23 @@ function GeoBanner({ status, label }) {
  */
 const OCCASION_ENTRY_POINTS = ['date night', 'business lunch', 'family friendly', 'special occasion', 'group dinner'];
 const CUISINE_ENTRY_POINTS = ['Steakhouse', 'Italian', 'Japanese', 'Seafood', 'Mexican', 'French'];
+
+/**
+ * The rule from `searchParams.js`, applied. Geo parameters reach the request only while
+ * the query is empty; a typed query is ranked by text, because `geo` sits second in
+ * `ranking` and would otherwise let a nearer partial match displace an exact name.
+ */
+function SearchConfiguration({ geo }) {
+  const { indexUiState } = useInstantSearch();
+  const browsing = !indexUiState.query;
+  return <Configure {...searchParams} {...(browsing && geo ? geo.params : {})} />;
+}
+
+/** Reads the browse state from context so the banner stays a pure component. */
+function HeaderBanner(props) {
+  const { indexUiState } = useInstantSearch();
+  return <GeoBanner {...props} browsing={!indexUiState.query} />;
+}
 
 function CuratedEntryPoints() {
   const { indexUiState, setIndexUiState } = useInstantSearch();
@@ -129,16 +157,15 @@ export default function App() {
   // first paint is not silently ordered by the wrong location.
   const geo = useMemo(() => {
     if (status === 'pending') return null;
-    return discoveryGeoParams(position, { ipFallback: status !== 'unavailable' });
+    return browseGeoParams(position, { ipFallback: status !== 'unavailable' });
   }, [position, status]);
 
   // `<Hits hitComponent>` passes only `{ hit }`, so the user's position — which the
   // third rung of the location-label fallback needs — is closed over here.
-  // `<Hits hitComponent>` and `<Autocomplete indices[].itemComponent>` both pass only
-  // the record, so the user's position — which the third rung of the location-label
-  // fallback needs — is closed over here. Named declarations rather than arrows plus
-  // `displayName`: assigning to the component object is a mutation React treats as
-  // illegal.
+  // `<Hits hitComponent>` passes only the record, so the user's position — which the
+  // third rung of the location-label fallback needs — is closed over here. A named
+  // declaration rather than an arrow plus `displayName`: assigning to the component
+  // object is a mutation React treats as illegal.
   const HitComponent = useMemo(() => {
     function HitWithPosition({ hit }) {
       return <Hit hit={hit} userPosition={position} />;
@@ -146,45 +173,15 @@ export default function App() {
     return HitWithPosition;
   }, [position]);
 
-  const SuggestionComponent = useMemo(() => {
-    function SuggestionWithPosition({ item, onSelect }) {
-      return <SuggestionItem item={item} onSelect={onSelect} userPosition={position} />;
-    }
-    return SuggestionWithPosition;
-  }, [position]);
 
   return (
     <InstantSearch searchClient={searchClient} indexName={indexName} future={{ preserveSharedStateOnUnmount: true }}>
-      <Configure {...discoveryParams} {...(geo?.params ?? {})} />
+      <SearchConfiguration geo={geo} />
 
       <header className="app-header">
         <h1>OpenTable — search &amp; discovery prototype</h1>
-        {/*
-          One input, two contexts, one library.
-
-          The widget issues its own query against `indices[].searchParameters` — the
-          known-item set, which carries no geo parameter — and renders those five hits in
-          the dropdown. The same keystroke drives the main index query below, which uses
-          the discovery `<Configure>` and does lead with geo. That is the separation §6
-          asked for, held by `searchParams.js` rather than by running two libraries.
-
-          Measured cost of *not* separating them: sharing one set takes the suite from
-          42/50 to 38/50. `Ocean Prime - Denver` (2 km) beats 117067 `Prime` on `prime`,
-          `Barley & Rye` beats `Rye` on `rye`, `Workshop at UNION` beats `Union`.
-        */}
-        <Autocomplete
-          placeholder="Search restaurants, cuisines, neighborhoods"
-          indices={[
-            {
-              indexName,
-              searchParameters: knownItemParams,
-              itemComponent: SuggestionComponent,
-            },
-          ]}
-          showRecent
-          detachedMediaQuery="(max-width: 680px)"
-        />
-        <GeoBanner status={status} label={geo?.label ?? DEFAULT_METRO.label} />
+        <SearchBox placeholder="Search restaurants, cuisines, neighborhoods" autoFocus />
+        <HeaderBanner status={status} label={geo?.label ?? DEFAULT_METRO.label} />
       </header>
 
       <CuratedEntryPoints />
