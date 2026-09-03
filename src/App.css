@@ -57,16 +57,36 @@
   box-shadow: none;
 }
 
+/*
+ * The theme draws the magnifier as `.ais-SearchBox-form::before`, absolutely positioned
+ * and outside the flex flow, so it cannot be pushed aside — the input has to leave room
+ * for it. The theme's own `padding-left: 2.5rem` does exactly that; overriding padding
+ * on this shared selector is what put the placeholder underneath the icon, in the header
+ * and in all five searchable facet boxes at once. Padding is now set per context, always
+ * clearing the icon its own context positions.
+ */
 .ais-SearchBox-input {
   flex: 1;
   min-width: 0;
-  height: 48px;
-  padding: 0 0.5rem 0 1rem;
   border: 0;
   border-radius: var(--radius);
   box-shadow: none;
-  font-size: 1rem;
   color: var(--ink);
+}
+
+/* Header box: taller, so the icon is scaled and offset to match, and the text clears it.
+   Icon spans 18px to 36px; text starts at 48px. */
+.search-row .ais-SearchBox-form::before {
+  left: 1.125rem;
+  width: 1.125rem;
+  height: 1.125rem;
+  margin-top: -0.5625rem;
+}
+
+.search-row .ais-SearchBox-input {
+  height: 48px;
+  padding: 0 0.5rem 0 3rem;
+  font-size: 1rem;
 }
 
 .ais-SearchBox-input::placeholder {
@@ -353,9 +373,13 @@
   cursor: pointer;
 }
 
-.ais-SearchBox-form .ais-SearchBox-input,
+/* Facet boxes: the theme moves their icon to `left: 0.5rem`, so it spans 8px to 24px and
+   the text starts at 32px. Scoped to `.facet` — an earlier version of this rule also
+   matched `.ais-SearchBox-form .ais-SearchBox-input`, which is every input on the page,
+   and silently shrank the header box to 34px inside its own 48px form. */
 .facet .ais-SearchBox-input {
   height: 34px;
+  padding: 0 0.5rem 0 2rem;
   font-size: 0.875rem;
 }
 
