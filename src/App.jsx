@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  ClearRefinements,
   Configure,
   CurrentRefinements,
   Hits,
@@ -17,6 +16,7 @@ import { searchClient, indexName, sortOptions } from './searchClient.js';
 import { paramsForQuery, looksLikeCategory, geoParams, DEMO_LOCATIONS } from './searchParams.js';
 import { Hit } from './components/Hit.jsx';
 import { insightsProps } from './insights.js';
+import { FilterPanel } from './components/FilterPanel.jsx';
 import './App.css';
 
 /**
@@ -200,6 +200,10 @@ export default function App() {
 
   // '' means "use my real location". Anything else is a simulated city.
   const [selectedLabel, setSelectedLabel] = useState('');
+
+  // Mobile only: the filters live in a sheet the user opens. Desktop ignores this — the
+  // sidebar is always visible there, and the state simply never changes.
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const selected = DEMO_LOCATIONS.find((location) => location.label === selectedLabel) ?? null;
   const position = selected ?? browserPosition;
 
@@ -253,12 +257,7 @@ export default function App() {
       <CuratedEntryPoints />
 
       <div className="layout">
-        <aside className="filters">
-          <div className="filters-head">
-            <h2>Filters</h2>
-            <ClearRefinements translations={{ resetButtonText: 'Clear all' }} />
-          </div>
-
+        <FilterPanel open={filtersOpen} onOpen={() => setFiltersOpen(true)} onClose={() => setFiltersOpen(false)}>
           <Facet title="Cuisine">
             <RefinementList attribute="cuisine" searchable searchablePlaceholder="Search cuisines" limit={8} showMore />
           </Facet>
@@ -275,15 +274,15 @@ export default function App() {
             <RefinementList attribute="occasions" limit={7} />
           </Facet>
           <Facet title="Market">
-            <RefinementList attribute="market" searchable limit={6} showMore />
+            <RefinementList attribute="market" searchable searchablePlaceholder="Search markets" limit={6} showMore />
           </Facet>
           <Facet title="City">
-            <RefinementList attribute="city" searchable limit={6} showMore />
+            <RefinementList attribute="city" searchable searchablePlaceholder="Search cities" limit={6} showMore />
           </Facet>
           <Facet title="Neighbourhood">
-            <RefinementList attribute="neighborhood" searchable limit={6} showMore />
+            <RefinementList attribute="neighborhood" searchable searchablePlaceholder="Search neighbourhoods" limit={6} showMore />
           </Facet>
-        </aside>
+        </FilterPanel>
 
         <main className="results">
           <div className="results-toolbar">

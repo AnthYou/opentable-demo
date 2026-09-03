@@ -260,28 +260,11 @@
   align-items: start;
 }
 
-@media (max-width: 860px) {
-  .layout {
-    grid-template-columns: 1fr;
-  }
-
-  .search-row {
-    flex-wrap: wrap;
-  }
-
-  .location-picker {
-    flex: 1;
-  }
-
-  .location-picker select {
-    flex: 1;
-  }
-}
-
 /* ---------------------------------------------------------------- filters */
 
 .filters-head {
   display: flex;
+  gap: 0.75rem;
   align-items: baseline;
   justify-content: space-between;
   padding-bottom: 0.625rem;
@@ -289,18 +272,53 @@
 }
 
 .filters-head h2 {
+  flex: 1;
   font-size: 1rem;
   font-weight: 700;
 }
 
+/*
+ * The sheet chrome — close button, apply button and the floating trigger — exists only
+ * below the breakpoint. On desktop the sidebar is permanently visible, so a button to
+ * open it and a button to dismiss it would both be lies.
+ */
+.filters-close,
+.filters-foot,
+.filters-toggle {
+  display: none;
+}
+
+/*
+ * Padded so it reads as a control rather than as stray link text — 0.8125rem of bare
+ * label is a thin thing to hit, and it is the only destructive action in the panel. The
+ * negative right margin cancels the horizontal padding against the flex edge, so the
+ * label stays optically flush with the panel while the hit area extends past it.
+ */
+/*
+ * The flex item in `.filters-head` is the widget's wrapper div, not the button, so
+ * `flex: none` belongs here — on the button it is inert. Left shrinkable, the wrapper
+ * collapses to min-content, which for "Clear all" is the longer of the two words, and the
+ * label breaks onto two lines. The `flex: 1` heading is what should absorb the squeeze.
+ */
+.filters-head .ais-ClearRefinements {
+  flex: none;
+}
+
 .ais-ClearRefinements-button {
-  padding: 0;
+  white-space: nowrap;
+  padding: 0.375rem 0.5rem;
+  margin-right: -0.5rem;
   border: 0;
+  border-radius: var(--radius-sm);
   background: none;
   color: var(--brand);
   font-size: 0.8125rem;
   font-weight: 600;
   cursor: pointer;
+}
+
+.ais-ClearRefinements-button:hover:not(.ais-ClearRefinements-button--disabled) {
+  background: var(--brand-tint);
 }
 
 .ais-ClearRefinements-button--disabled {
@@ -667,4 +685,204 @@
   background: var(--brand-tint);
   font-size: 0.8125rem;
   white-space: pre-wrap;
+}
+
+/* ---------------------------------------------------------------- mobile */
+
+@media (max-width: 860px) {
+  .layout {
+    grid-template-columns: 1fr;
+    padding-bottom: 5.5rem; /* room for the floating trigger */
+  }
+
+  .app-header {
+    /* Not sticky on a small screen: brand, search, location and the geo sentence already
+       take most of a phone viewport, and pinning them leaves almost nothing for results. */
+    position: static;
+  }
+
+  .search-row {
+    flex-wrap: wrap;
+  }
+
+  /*
+   * The search box takes the whole line. It is the one control both journeys start from,
+   * and sharing a row with the location select left it too narrow to read back the name
+   * being typed — which on a misspelled known-item query is the whole point. `flex-basis:
+   * 100%` forces the wrap; the select then fills the line below it.
+   */
+  .search-row .ais-SearchBox {
+    flex: 1 0 100%;
+  }
+
+  .location-picker,
+  .location-picker select {
+    flex: 1;
+  }
+
+  /*
+   * The filters become a sheet. They stay in the DOM — see FilterPanel.jsx — so this is
+   * presentation only: off-screen and inert when closed, full-viewport when open.
+   */
+  .filters {
+    position: fixed;
+    z-index: 30;
+    display: flex;
+    flex-direction: column;
+    inset: 0;
+    padding: 0;
+    background: var(--surface);
+    transform: translateY(100%);
+    visibility: hidden;
+    pointer-events: none;
+    transition: transform 0.22s ease, visibility 0.22s;
+  }
+
+  .filters--open {
+    transform: translateY(0);
+    visibility: visible;
+    pointer-events: auto;
+  }
+
+  /*
+   * A third item joins the row here — the close button — so the negative margin that keeps
+   * the label flush with the sidebar edge on desktop would instead eat into the gap before
+   * it. The head carries its own horizontal padding on this breakpoint, so there is nothing
+   * left for the label to sit flush against.
+   */
+  .filters-head .ais-ClearRefinements-button {
+    margin-right: 0;
+  }
+
+  .filters-head {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    align-items: center;
+    padding: 0.875rem clamp(1rem, 4vw, 1.5rem);
+    border-bottom: 1px solid var(--line);
+    background: var(--surface);
+  }
+
+  .filters-head h2 {
+    font-size: 1.125rem;
+  }
+
+  .filters-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 clamp(1rem, 4vw, 1.5rem) 1rem;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .filters-close {
+    display: grid;
+    width: 34px;
+    height: 34px;
+    border: 0;
+    border-radius: 50%;
+    background: var(--surface-2);
+    color: var(--ink-2);
+    font-size: 0.875rem;
+    cursor: pointer;
+    place-items: center;
+  }
+
+  .filters-foot {
+    display: block;
+    padding: 0.75rem clamp(1rem, 4vw, 1.5rem);
+    padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+    border-top: 1px solid var(--line);
+    background: var(--surface);
+  }
+
+  .filters-apply {
+    width: 100%;
+    height: 46px;
+    border: 0;
+    border-radius: var(--radius);
+    background: var(--brand);
+    color: #fff;
+    font-size: 0.9375rem;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .filters-toggle {
+    position: fixed;
+    z-index: 20;
+    bottom: max(1rem, env(safe-area-inset-bottom));
+    left: 50%;
+    display: inline-flex;
+    gap: 0.5rem;
+    align-items: center;
+    height: 44px;
+    padding: 0 1.25rem;
+    border: 0;
+    border-radius: 999px;
+    background: var(--ink);
+    box-shadow: 0 6px 20px rgba(27, 26, 30, 0.28);
+    color: #fff;
+    font-size: 0.9375rem;
+    font-weight: 700;
+    cursor: pointer;
+    transform: translateX(-50%);
+  }
+
+  .filters--open ~ .filters-toggle {
+    display: none;
+  }
+
+  .filters-toggle-count {
+    display: grid;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 0.3rem;
+    border-radius: 999px;
+    background: var(--brand);
+    font-size: 0.75rem;
+    place-items: center;
+  }
+
+  /* The page behind the sheet must not scroll. */
+  body.has-sheet {
+    overflow: hidden;
+  }
+
+  .facet:last-child {
+    border-bottom: 0;
+  }
+}
+
+/* Narrow phones: the Book button stops competing with the name for width. */
+@media (max-width: 430px) {
+  .hit {
+    grid-template-columns: 60px 1fr;
+    grid-template-areas: 'tile body' 'tile book';
+  }
+
+  .hit-tile {
+    width: 60px;
+    height: 60px;
+    grid-area: tile;
+    font-size: 1.25rem;
+  }
+
+  .hit-body {
+    grid-area: body;
+  }
+
+  .hit-book {
+    justify-self: start;
+    margin-top: 0.5rem;
+    grid-area: book;
+  }
+
+  .ais-Hits-list {
+    grid-template-columns: 1fr;
+  }
+
+  .stars-reviews {
+    display: none;
+  }
 }
