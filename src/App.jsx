@@ -14,7 +14,7 @@ import {
 } from 'react-instantsearch';
 
 import { searchClient, indexName, sortOptions } from './searchClient.js';
-import { paramsForQuery, looksLikeCategory, geoParams } from './searchParams.js';
+import { paramsForQuery, looksLikeCategory, geoParams, DEMO_LOCATIONS } from './searchParams.js';
 import { Hit } from './components/Hit.jsx';
 import './App.css';
 
@@ -61,10 +61,11 @@ function useGeoPosition() {
  * the user needs to know from where. Once they type, location stops ranking and saying
  * otherwise would be a lie — so the banner says which signal is in charge.
  */
-function GeoBanner({ status, label, byCategory }) {
+function GeoBanner({ status, label, byCategory, waiting }) {
   // The label comes from `geoParams`, which knows which rung of the fallback chain is
-  // actually in use — the status only adds that a more precise position may still arrive.
-  const pending = status === 'pending' ? ' Still asking your browser for a precise position.' : '';
+  // actually in use — the status only adds that a more precise position may still arrive,
+  // and only while no city has been picked.
+  const pending = waiting && status === 'pending' ? ' Still asking your browser for a precise position.' : '';
 
   return (
     <p className="geo-banner" role="status">
@@ -85,6 +86,34 @@ function GeoBanner({ status, label, byCategory }) {
  */
 const OCCASION_ENTRY_POINTS = ['date night', 'business lunch', 'family friendly', 'special occasion', 'group dinner'];
 const CUISINE_ENTRY_POINTS = ['Steakhouse', 'Italian', 'Japanese', 'Seafood', 'Mexican', 'French'];
+
+/**
+ * Location selector.
+ *
+ * The corpus is a sparse national sample with gaps where you would not expect them —
+ * Chicago holds zero records, nearest 116 km away, and Boston, Atlanta and Seattle are
+ * the same. A demo driven only by the browser's position looks broken from any of them
+ * while behaving perfectly, so the position has to be selectable.
+ *
+ * "Use my location" is the default and keeps the previous behaviour: browser position if
+ * granted, IP otherwise. The cities are the ten best-covered markets, each showing how
+ * many records sit within 25 km so whoever runs the demo can see what to expect.
+ */
+function LocationPicker({ value, onChange, resolvedLabel }) {
+  return (
+    <div className="location-picker">
+      <label htmlFor="location">Searching near</label>
+      <select id="location" value={value} onChange={(event) => onChange(event.target.value)}>
+        <option value="">{value === '' ? `Use my location — ${resolvedLabel}` : 'Use my location'}</option>
+        {DEMO_LOCATIONS.map((location) => (
+          <option key={location.label} value={location.label}>
+            {`${location.label} — ${location.within25km} nearby`}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
 
 /**
  * Applies the dial from `searchParams.js`. Geo coordinates are always sent; only
@@ -142,7 +171,12 @@ function CuratedEntryPoints() {
 }
 
 export default function App() {
-  const { position, status } = useGeoPosition();
+  const { position: browserPosition, status } = useGeoPosition();
+
+  // '' means "use my real location". Anything else is a simulated city.
+  const [selectedLabel, setSelectedLabel] = useState('');
+  const selected = DEMO_LOCATIONS.find((location) => location.label === selectedLabel) ?? null;
+  const position = selected ?? browserPosition;
 
   // `discoveryGeoParams` decides the rung; App only decides whether the IP rung is still
   // worth trying. `pending` sends no geo parameter at all rather than guessing, so the
@@ -182,7 +216,8 @@ export default function App() {
       <header className="app-header">
         <h1>OpenTable — search &amp; discovery prototype</h1>
         <SearchBox placeholder="Search restaurants, cuisines, neighborhoods" autoFocus />
-        <HeaderBanner status={status} label={geo.label} />
+        <LocationPicker value={selectedLabel} onChange={setSelectedLabel} resolvedLabel={geo.label} />
+        <HeaderBanner status={status} label={geo.label} waiting={selected === null} />
       </header>
 
       <CuratedEntryPoints />

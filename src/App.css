@@ -213,3 +213,27 @@ body {
   font-size: 0.8125rem;
   white-space: pre-wrap;
 }
+
+/* --- location selector --- */
+
+.location-picker {
+  display: flex;
+  gap: 0.5rem;
+  align-items: baseline;
+  margin-top: 0.75rem;
+  font-size: 0.875rem;
+}
+
+.location-picker label {
+  color: var(--muted);
+}
+
+.location-picker select {
+  padding: 0.2rem 0.4rem;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--bg);
+  color: inherit;
+  font: inherit;
+  font-size: 0.875rem;
+}

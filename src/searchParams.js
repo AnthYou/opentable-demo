@@ -56,28 +56,42 @@ export const PRECISION_COARSE_METRES = 20000000;
 const PRECISION_NEUTRAL_THRESHOLD_METRES = 10000000;
 
 /**
- * Last rung of the geo fallback chain. §5: never leave the user geo-blocked — browser
- * position, then IP, then a default metro, and tell the user which is in use.
+ * Positions the demo can be run from, and the only ones worth running it from.
  *
- * **Reachability is a stated limitation.** The app resolves the first two rungs on its
- * own: precise coordinates when the browser grants them, `aroundLatLngViaIP` otherwise —
- * including while the permission prompt is still open, since it needs no permission. The
- * third rung fires only when the IP lookup itself yields nothing, and a client cannot
- * detect that: Algolia resolves the IP server-side and a failure looks like results that
- * simply are not geo-ordered. So this rung is reachable only through an explicit
- * `ipFallback: false`, which nothing in the app currently passes. It stays because a city
- * selector — the obvious next control — would use exactly this path.
+ * The corpus is a sparse national sample and the gaps are not where you would guess.
+ * Measured: **Chicago has zero records** — nothing in the city, nothing in its market,
+ * nearest restaurant 116 km away in South Bend. Boston (123 km), Atlanta (167 km) and
+ * Seattle (220 km) are equally empty. A "near me" demo run from any of those looks
+ * broken while behaving perfectly.
  *
- * New York because it is the densest part of the corpus by a wide margin: 695 records in
- * the city and 1,414 in the `New York / Tri-State Area` market, 28% of all 5,000. A
- * default metro with thin coverage would make the fallback look broken. Coordinates are
- * the measured centroid of those 695 records, not a landmark.
+ * So the position is a user choice, not only a browser reading. Each entry is a `market`
+ * — the corpus's own navigation facet — with the centroid of its densest city as the
+ * pivot, and the count of records within 25 km of that pivot. Ordered by coverage.
+ *
+ * Derived from `data/records.json`; re-derive if the transform changes. 21 of the 51
+ * markets hold fewer than 20 records within 25 km of their pivot, which is why this list
+ * is curated rather than generated from all of them.
  */
-export const DEFAULT_METRO = {
-  label: 'New York',
-  lat: 40.7484,
-  lng: -73.9854,
-};
+export const DEMO_LOCATIONS = [
+  { label: 'New York', market: 'New York / Tri-State Area', lat: 40.7484, lng: -73.9854, within25km: 903 },
+  { label: 'San Diego', market: 'San Diego', lat: 32.763, lng: -117.1734, within25km: 211 },
+  { label: 'Houston', market: 'Houston', lat: 29.7578, lng: -95.443, within25km: 176 },
+  { label: 'Denver', market: 'Denver / Colorado', lat: 39.7343, lng: -104.9794, within25km: 175 },
+  { label: 'San Francisco', market: 'San Francisco Bay Area', lat: 37.7837, lng: -122.4211, within25km: 164 },
+  { label: 'Phoenix / Scottsdale', market: 'Phoenix / Arizona', lat: 33.5712, lng: -111.9183, within25km: 156 },
+  { label: 'Portland', market: 'Portland / Oregon', lat: 45.5231, lng: -122.6693, within25km: 147 },
+  { label: 'Indianapolis', market: 'Indiana', lat: 39.8155, lng: -86.1498, within25km: 87 },
+  { label: 'Las Vegas', market: 'Las Vegas', lat: 36.1226, lng: -115.1788, within25km: 87 },
+  { label: 'Nashville', market: 'Nashville', lat: 36.1503, lng: -86.7869, within25km: 86 },
+];
+
+/**
+ * §5's third rung. It is no longer a silent automatic fallback: the selector makes it a
+ * user choice, which serves "tell the user which location is in use" better than any
+ * default could. It stays as the densest market, for a caller that wants a position
+ * without asking.
+ */
+export const DEFAULT_METRO = DEMO_LOCATIONS[0];
 
 /**
  * The half both journeys share: everything except `aroundPrecision`.
@@ -255,9 +269,12 @@ export function geoParams(position, options = {}) {
   const { ipFallback = true } = options;
 
   if (position && Number.isFinite(position.lat) && Number.isFinite(position.lng)) {
+    // A position carrying its own label came from the selector; one without came from
+    // the browser. Keeping the label here rather than in the caller is what stops §5's
+    // "tell the user which location is in use" from being skippable.
     return {
-      source: 'browser',
-      label: 'your location',
+      source: position.label ? 'selected' : 'browser',
+      label: position.label ?? 'your location',
       params: { aroundLatLng: `${position.lat},${position.lng}`, aroundRadius: 'all' },
     };
   }

@@ -438,10 +438,23 @@ no permission and is resolved server-side, so it carries proximity from the very
 request and is upgraded to precise coordinates if and when the browser answers. The same
 path covers a denial and a browser with no geolocation API.
 
-The third rung is a stated limitation rather than an automatic one: Algolia resolves the
-IP server-side, and a failed lookup looks from the client like results that are simply
-not geo-ordered. The default metro is therefore reachable only through an explicit call,
-which nothing currently makes — a city selector would be the thing that uses it.
+**The third rung is now a control, not a silent default.** A location selector offers the
+ten best-covered markets alongside "use my location", because the corpus has gaps where
+nobody would look for them: **Chicago holds zero records** — nothing in the city, nothing
+in its market, nearest restaurant 116 km away in South Bend — and Boston (123 km),
+Atlanta (167 km) and Seattle (220 km) are the same. A demo driven only by the browser
+looks broken from any of those while behaving perfectly. Each option shows its record
+count within 25 km so whoever runs the demo knows what to expect.
+
+Making it a choice serves "tell the user which location is in use" better than a default
+ever could, and it means the fallback chain no longer has an unreachable rung.
+
+What remains a genuine limitation: with `aroundLatLngViaIP` the client cannot know where
+Algolia placed it. Measured — the response does not echo a resolved `aroundLatLng`, so
+the banner can only say "your approximate location" without naming it, and a failed
+lookup is indistinguishable from results that are simply not geo-ordered. From outside
+the US the ordering is also meaningless: tested from this machine, the nearest record
+came back 5,609 km away. The selector is the answer to both.
 
 ## 6. Stack and repo layout
 
