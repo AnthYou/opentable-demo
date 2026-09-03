@@ -267,11 +267,10 @@ gets reviewed in diffs, and a dashboard-only change is a change nobody can trace
 ```
 searchableAttributes: [
   "unordered(name)",          # persona 1: name outranks everything else
-  "chain_name",
   "unordered(cuisine,cuisine_tags)",
   "unordered(neighborhood,city,market)",
   "address"
-]
+]                             # chain_name removed — see below
 attributesForFaceting: [
   "searchable(cuisine)", "cuisine_tags", "dining_style",
   "price_range", "price_tier", "occasions", "city", "market", "neighborhood",
@@ -280,6 +279,7 @@ attributesForFaceting: [
 customRanking: ["desc(popularity_score)", "desc(reviews_count)"]
 typoTolerance: minWordSizefor1Typo 4, minWordSizefor2Typos 8,
                allowTyposOnNumericTokens false
+exactOnSingleWordQuery: "attribute"   # measured against "word" — see below
 queryType: "prefixLast"
 removeWordsIfNoResults: "lastWords"   # evaluate "allOptional" on discovery
 replicas (virtual): rating_desc, price_asc, price_desc
@@ -297,6 +297,25 @@ nothing to store and nothing to pre-sort. Distance ordering is produced by sendi
 `aroundLatLng` to the primary index, where the `geo` ranking criterion applies. The
 sort control therefore offers the primary index as its geo-aware default plus the
 three replicas above.
+
+**`exactOnSingleWordQuery` is declared at `attribute`, not left to the default.** The
+value equals Algolia's default, but the choice is now a measured one and must be visible
+in a diff. `attribute` grants the `exact` criterion only when a single-word query equals
+the whole attribute value; `word` grants it when the query matches any whole word. The
+two are in direct opposition and no setting provides both. Measured on this corpus,
+`word` fixes `nobu` (`Nobuo` stops outranking three real Nobu locations) and breaks
+`prime`, `bistro` and `babylon`. Net −2, so `attribute` stays. See `test-queries.md`,
+the `exact` tie investigation.
+
+**`chain_name` is not searchable, and that is deliberate.** It was listed here
+originally. It is provably redundant — all 722 chained records have a name beginning
+with their `chain_name`, 0 exceptions, because it is derived from the name — so any
+query reaching a record through it already reaches it through `name` at level 1. Worse,
+being searchable it produced a whole-attribute exact match for every member of a chain
+whose base name equalled the query, which cancelled the real name match: on `prime`,
+90916 `Prime - Bellagio Hotel` scored `exact=1` through `chain_name` and beat 117067
+`Prime`, whose name *is* the query. Removed 2026-09-03; `test-queries.md` A2 went from
+fail to pass with zero regressions. It stays in the record as a returned attribute for display and grouping; it is not in `attributesForFaceting` and never was.
 
 **`ranking` is declared explicitly, at Algolia's default order.** Declaring it matters
 even when the value matches the default: the order is a consequential choice, and an

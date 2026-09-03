@@ -235,6 +235,75 @@ neither missed record creates a new same-city cluster.
 
 ---
 
+## The `exact` tie — investigated 2026-09-03
+
+Five cases were grouped under one hypothesis: that `exact` ties and `popularity_score`
+decides, and that the fix was a name-length tie-break in `customRanking` requiring a new
+attribute from the transform. **Both halves of that hypothesis were wrong.**
+
+### The mechanism, measured
+
+Restricted to `name` alone, the `exact` criterion works exactly as it appears to:
+`exactOnSingleWordQuery` defaults to `attribute`, which grants `exact=1` only when the
+query equals the *whole* attribute value. On `bistro` restricted to `name`, only 100624
+`Bistro` scores 1. The criterion never failed — **other searchable attributes were
+producing competing whole-attribute exact matches and cancelling it.**
+
+| case | what cancelled the name match | outcome |
+|---|---|---|
+| A2 `prime` | `chain_name: "Prime"` on 90916, a whole-attribute match at level 2 | **fixed** by removing `chain_name` |
+| A7 `bistro` | `cuisine_tags: ["Bistro"]` on 5014 | accepted — the tag does real work |
+| A5 `santa fe` | nothing; two-word query, all candidates score `exact=2` | accepted |
+| K14 `leftbank` | nothing; concatenated query, all score `exact=0` | accepted |
+| G2 `nobu` | nothing; no attribute equals "Nobu", all score `exact=0` | accepted |
+
+### Why `chain_name` came out of `searchableAttributes`
+
+It is provably redundant: **all 722 chained records have a name beginning with their
+`chain_name`, with 0 exceptions**, because `chain_name` is derived from the name. Any
+query reaching a record through `chain_name` already reaches it through `name` at level
+1. Being searchable it bought nothing and cost the exact criterion its meaning for every
+chain whose base name equals a query. Removing it fixed A2 with zero regressions across
+the other 49 measurable cases.
+
+### Why the name-length tie-break was abandoned
+
+`asc(name_word_count)` has no valid position in `customRanking`. Before
+`desc(popularity_score)` it dominates: broad queries such as `italian` or `steakhouse`
+would be ordered by name length, which is meaningless for discovery and would displace
+the ranking signal the whole `popularity_score` design exists to provide. After it, it
+never fires — `popularity_score` is a float with essentially no collisions. There is no
+conditional `customRanking`, so a signal that is only meaningful for short queries cannot
+be expressed there. No new attribute was added and the section 4 schema is unchanged.
+
+### Why `exactOnSingleWordQuery: "word"` was rejected
+
+It is the precise tool for G2 — `nobu` is a whole word in `Nobu Waikiki` but only a
+prefix of `Nobuo`, so the four true Nobu score 1 and Nobuo scores 0. Measured at query
+time across every affected single-word case, it fixes G2 and **breaks A2, A7 and A8**:
+`prime` returns Bohanan's Prime Steaks, `bistro` returns Costa Brava Bistro, `babylon`
+returns Babylon Turkish Restaurant. Net −2.
+
+The two modes are in direct opposition and no setting provides both:
+
+- `attribute` rewards **the query is the whole name** — wins A2, A7, A8
+- `word` rewards **the query is a whole word in the name** — wins G2
+
+`attribute` is kept because it serves three cases against one, and because "the query is
+the whole name" is the stronger known-item signal.
+
+### What the four accepted cases have in common
+
+In each, the expectation asks a single ambiguous token to resolve to one specific
+restaurant when the corpus offers several defensible answers. On `bistro`, `santa fe` and
+`leftbank` the wanted record is at rank 2 with all its rivals in the top three; on `nobu`
+rank 1 is a real Nobu. None of them returns a wrong answer — each returns a plausible
+answer in a different order than the case author expected. That is the distinction
+between a relevance defect and an over-specified test, and it is why they are `accepted`
+rather than softened into `pass`.
+
+---
+
 ## 1. Exact name
 
 The floor. If these fail, nothing else matters.
@@ -266,7 +335,7 @@ Persona 1's headline pain: "restaurant names are hard to spell or remember".
 | id | query | ctx | expectation | status |
 |---|---|---|---|---|
 | K13 | `ilforno` | AC+IS | 112282 (New York) and 3912 (Santa Monica) returned. | **pass** |
-| K14 | `leftbank` | AC+IS | 65758 `Left Bank` (New York) rank 1, ahead of 2115 `Left Bank Santana Row` and 15421 `Left Bank Restaurant` — exact base name beats a longer name containing it. | **fail** — rank 2 of 4 — 15421 `Left Bank Restaurant` is first. Root cause in the baseline run above. |
+| K14 | `leftbank` | AC+IS | 65758 `Left Bank` (New York) rank 1, ahead of 2115 `Left Bank Santana Row` and 15421 `Left Bank Restaurant` — exact base name beats a longer name containing it. | **accepted** — rank 2 of 4, and all three `Left Bank` records hold the top three. Every candidate scores `exact=0`: a concatenated query earns no exact match anywhere, so popularity decides. No settings lever exists, and the name-length tie-break has the wrong shape — placed before `popularity_score` it would reorder broad queries such as `italian` by name length, placed after it would never fire. A user typing `leftbank` has not disambiguated between the three. |
 | K15 | `roaringfork` | AC+IS | 5545 rank 1. | **pass** |
 | K16 | `montblanc` | AC+IS | 60130 `Mont Blanc` (New York) rank 1. | **pass** |
 
@@ -309,12 +378,12 @@ The hardest section. Every case is a real collision measured in `data/exploratio
 | id | query | ctx | expectation | status |
 |---|---|---|---|---|
 | A1 | `rye` | AC+IS | 95884 (Leawood, KS) and 105424 (Brooklyn, NY) — the two restaurants *named* Rye — rank above any restaurant merely located in Rye or in a neighborhood called Rye. Must also not be displaced by 95284 `Roe` (Portland), which is one character away. The densest single test case in the corpus: homonym, place collision, and typo neighbour at once. | **pass** |
-| A2 | `prime` | AC+IS | 117067 `Prime` (Mansfield, TX) rank 1 as the exact name match — **even though its own `food_type` is Mexican**. Below it: 4941 and 27409 `Prime Steakhouse`, then 145747 / 144688 `Prime 47`, then the 486 `Steakhouse` cuisine matches. A name match must never lose to a cuisine match. | **fail** — rank 2 of 49 — 90916 `Prime - Bellagio Hotel` is first. Root cause in the baseline run above. |
+| A2 | `prime` | AC+IS | 117067 `Prime` (Mansfield, TX) rank 1 as the exact name match — **even though its own `food_type` is Mexican**. Below it: 4941 and 27409 `Prime Steakhouse`, then 145747 / 144688 `Prime 47`, then the 486 `Steakhouse` cuisine matches. A name match must never lose to a cuisine match. | **pass** — after removing `chain_name` from `searchableAttributes` on 2026-09-03. 90916 had been scoring `exact=1` through `chain_name: "Prime"`, cancelling the real name match. |
 | A3 | `naya` | AC+IS | 148411 `Naya` (Pittsburgh) rank 1. Three competing readings must lose to it: 79378 `Kaya` (**also Pittsburgh**, edit distance 1, so geo cannot separate them either) and the 5 `Cyclone Anaya's` Houston records, which contain "naya" as a substring. **⚠ prediction refuted 2026-09-03** — flagged as the likeliest way to break persona 1 with typo tolerance. 148411 ranks 1 of 31 hits with the thresholds unchanged; A4 holds in the mirror direction. | **pass** |
 | A4 | `kaya` | AC+IS | The mirror of A3: 79378 `Kaya` rank 1, above 148411 `Naya`. Both directions must hold; fixing one at the cost of the other is not a fix. | **pass** |
-| A5 | `santa fe` | AC+IS | 65881 `Santa Fe` (a restaurant in **New York**) ranks above the restaurants located in Santa Fe, NM (e.g. 61711 `Raaga`, 3267 `Geronimo`). Its own cuisine is `Mexican / Southwestern`, which makes the term triply ambiguous: name, city, cuisine. | **fail** — rank 2 of 41 — 93850 `Vinaigrette - Santa Fe` is first. Root cause in the baseline run above. |
+| A5 | `santa fe` | AC+IS | 65881 `Santa Fe` (a restaurant in **New York**) ranks above the restaurants located in Santa Fe, NM (e.g. 61711 `Raaga`, 3267 `Geronimo`). Its own cuisine is `Mexican / Southwestern`, which makes the term triply ambiguous: name, city, cuisine. | **accepted** — rank 2 of 41. `santa fe` is a two-word query, so `exactOnSingleWordQuery` does not apply and every candidate scores `exact=2`; no criterion discriminates and popularity decides (4.376 against 4.218). The case is over-specified: `santa fe` is far more often a place than a restaurant name, and two of the top three genuinely are in Santa Fe. |
 | A6 | `union` | AC+IS | 145234 (Pasadena, Contemporary Italian) and 116815 (Mobile, Steakhouse) rank above the records in the `Union Square` neighborhood. | **pass** |
-| A7 | `bistro` | AC+IS | 100624 `Bistro` (Jupiter, FL) rank 1 — the only name in the corpus identical to a full `food_type` value. Its own cuisine is Contemporary American; the `Bistro` food_type maps to primary `French`. | **fail** — rank 2 of 210 — 5014 `Mockingbird Bistro` is first. Root cause in the baseline run above. |
+| A7 | `bistro` | AC+IS | 100624 `Bistro` (Jupiter, FL) rank 1 — the only name in the corpus identical to a full `food_type` value. Its own cuisine is Contemporary American; the `Bistro` food_type maps to primary `French`. | **accepted** — rank 2 of 210. Both 100624 and 5014 score `exact=1`; 5014 earns it through `cuisine_tags: ["Bistro"]`. Removing that tag would fix the case but make 10105 `7 on Fulton` and 72718 `Acme` unreachable by `bistro` — neither carries the word in its name, so the tag does real work. Only 2 of 128 taxonomy values collide with an exact restaurant name (`Bistro`, `Small Plates`), so the cost is narrow and enumerable. A French bistro with 1,638 reviews above a restaurant named `Bistro` with 317 is not obviously wrong for a word that is more often a category than a name. |
 | A8 | `babylon` | AC+IS | 70969 `Babylon` (Raleigh, NC, Moroccan) ranks above records in Babylon, NY. | **pass** |
 
 ## 7. Multi-location chain
@@ -364,7 +433,7 @@ testable rather than hypothetical.
 | id | query | ctx | expectation | status |
 |---|---|---|---|---|
 | G1 | `nobu`, geo = Denver (39.7343, -104.9794) | AC | 4524 `Nobu Fifty Seven` (New York), 13129 `Nobu Waikiki`, 16927 `Nobu San Diego` and 99796 `Nobu Lanai` rank above **every** Denver restaurant. Text relevance leads; geo is display and tie-break only. If a Denver bistro outranks Nobu, the known-item journey is broken. | **pass** |
-| G2 | `nobu`, geo = Denver | AC | 74146 `Nobuo at Teeter House` (Phoenix) and 75256 `Mitsunobu` (Menlo Park) rank **below** the four true Nobu locations. Tests that prefix and substring matches do not outrank the exact brand. | **fail** — 74146 `Nobuo at Teeter House` at rank 2, above three of the four true Nobu. Same root cause as failure group 1. See the second run above. |
+| G2 | `nobu`, geo = Denver | AC | 74146 `Nobuo at Teeter House` (Phoenix) and 75256 `Mitsunobu` (Menlo Park) rank **below** the four true Nobu locations. Tests that prefix and substring matches do not outrank the exact brand. | **accepted** — 74146 at rank 2. `exactOnSingleWordQuery: "word"` fixes it exactly — all four Nobu score `exact=1`, Nobuo scores 0 — but measured at query time it breaks A2 (`prime` gives Bohanan's), A7 (`bistro` gives Costa Brava) and A8 (`babylon` gives Babylon Turkish). Net −2, so it is not applied. Rank 1 is a real Nobu and ranks 3–5 are the other three; rank 2 is a Japanese restaurant whose name genuinely begins with `Nobu`, plausibly what the user was typing. |
 | G3 | `italian`, geo = Denver | IS | Geo leads. Denver-area Italian restaurants first, but `aroundPrecision` buckets must be coarse enough that `popularity_score` breaks ties inside a bucket — a marginally closer mediocre restaurant must not outrank an excellent one two streets further. | **pass** — after restoring `geo` to position 2 on 2026-09-03. All 10 top hits in Denver, first Denver record at position 1 (was 89 of 895), and popularity strictly decreasing inside the bucket: 4.688, 4.590, 4.589, 4.589, 4.497. |
 | G4 | `cyclone anaya's`, geo = Pittsburgh (40.4491, -79.9939) | AC | All 5 Houston records still returned, ~1,900 km away. A known-item query must not be filtered by proximity, only ordered by it as a tie-break. | **pass** |
 
@@ -379,6 +448,9 @@ unattributable. A change with no motivating case does not belong here.
 |---|---|---|---|---|---|
 | 2026-09-03 | *none — initial push* | — | — | baseline established: 16/23 pass | — |
 | 2026-09-03 | `ranking` — position of `geo` | position 7 (below `exact`) → position 2 (Algolia default) | **G3** `italian` from Denver | G3 fail → pass. First Denver record moves from 89th of 895 to 1st; all 10 top hits in Denver; popularity strictly decreasing inside the 5 km `aroundPrecision` bucket (4.688 → 4.497), which is the tie-break §5 specified. | **none.** All 49 other cases byte-identical. G1, G2, G4 and C5 unchanged — the known-item context sends no geo parameter, so the criterion stays inert there whatever its position. |
+| 2026-09-03 | `searchableAttributes` — removed `chain_name` | 5 levels → 4 | **A2** `prime` | A2 fail → pass. 90916 had been scoring `exact=1` through `chain_name: "Prime"`, a whole-attribute match at level 2 that cancelled 117067's real name match. Provably lossless: all 722 chained records have a name beginning with their `chain_name`, 0 exceptions. | **none.** All 49 other cases byte-identical. |
+| 2026-09-03 | `exactOnSingleWordQuery` — **evaluated, not applied** | `attribute` → `word` | **G2** `nobu` | Would fix G2: all four Nobu score `exact=1`, Nobuo scores 0. | **Breaks A2, A7 and A8** — `prime` returns Bohanan's, `bistro` returns Costa Brava, `babylon` returns Babylon Turkish. Net −2, so `attribute` is kept. The two modes are in direct opposition: `attribute` rewards "the query is the whole name", `word` rewards "the query is a whole word in the name". |
+| 2026-09-03 | `exactOnSingleWordQuery` — now declared | *(implicit default)* → `"attribute"` | the measurement above | Nothing behaviourally: the value equals the effective default. Declared so the measured choice is visible in a diff instead of inherited silently, the same reason `ranking` is declared. | **none.** Spot-checked on the eight single-word queries the setting can affect — `prime`, `bistro`, `babylon`, `nobu`, `rye`, `naya`, `steakhouse`, `thai` — all rank 1 unchanged. |
 
 The initial configuration in `scripts/settings.json` was pushed unchanged, so this row
 records a baseline rather than a change. Every row after it must name one setting, the
@@ -399,15 +471,15 @@ Recorded now so they are not quietly forgotten once results start coming in.
 
 **Still open:**
 
-1. **The `exact` tie — one lever, five cases.** K14, A2, A5, A7 and now **G2** all fail
-   for the same measured reason: `exactOnSingleWordQuery` defaults to `attribute`, so the
-   exact criterion is granted only when the query equals the whole attribute value. On
-   `nobu`, `bistro`, `prime`, `santa fe` and `leftbank` every candidate scores `exact=0`
-   or every candidate scores `exact=1`, the formula runs out of criteria, and
-   `desc(popularity_score)` decides. The remaining lever is a length or word-count
-   tie-break in `customRanking`, which means a new attribute from the transform and a
-   section 4 schema change. Highest value on G2 and K14; questionable on A2, where the
-   "correct" answer has 3 reviews.
+1. ~~**The `exact` tie — one lever, five cases.**~~ **Closed 2026-09-03.** A2 fixed by
+   removing the redundant `chain_name` from `searchableAttributes`; A5, A7, K14 and G2
+   accepted with recorded reasons. The name-length tie-break was abandoned as having no
+   valid position in `customRanking`, and `exactOnSingleWordQuery: "word"` was measured
+   and rejected at net −2. No schema change was needed. See the investigation section
+   above. What remains live is narrower: **if `cuisine_tags` ever gains another value
+   that equals a restaurant name, A7's failure mode reappears.** Two of 128 values
+   collide today — `Bistro` and `Small Plates` — and that count should be checked
+   whenever the taxonomy changes.
 2. **Is A2 a defect or a bad case?** 117067 `Prime` carries 3 reviews. Ranking it above
    a 1,174-review restaurant of the same name contradicts the reasoning behind
    `popularity_score`. Narrowing the case may be more honest than changing ranking.
