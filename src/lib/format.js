@@ -77,3 +77,44 @@ export function formatRating(hit) {
     reviews: Number.isFinite(reviews) ? reviews.toLocaleString('en-US') : null,
   };
 }
+
+/**
+ * Initials for the placeholder tile.
+ *
+ * The extract's `image_url` values are a decade old. Every one of them 302-redirects to
+ * the same 207x207 grey PNG — verified by hashing five of them, identical SHA-256 — so
+ * there are no restaurant photos to show and fetching 5,000 copies of one placeholder
+ * would be pure waste. The card keeps its left-hand block, because that is what gives
+ * the row its rhythm, and fills it locally instead of faking a photograph.
+ */
+export function initials(name) {
+  const words = String(name ?? '')
+    .replace(/^(the|le|la|il|el|a)\s+/i, '')
+    .split(/[\s\-–—/&']+/)
+    .filter((w) => /[a-z0-9]/i.test(w));
+  if (words.length === 0) return '?';
+  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+  return (words[0][0] + words[1][0]).toUpperCase();
+}
+
+/**
+ * A stable hue per restaurant, so the tiles read as a palette rather than noise and a
+ * given restaurant always looks the same. Derived from the objectID, which never
+ * changes; deriving it from the name would reshuffle on a re-index.
+ */
+export function tileHue(objectID) {
+  const s = String(objectID ?? '');
+  let hash = 0;
+  for (let i = 0; i < s.length; i++) hash = (hash * 31 + s.charCodeAt(i)) % 360;
+  return hash;
+}
+
+/**
+ * Percentage fill for a five-star row. Kept here rather than in the component so the
+ * rounding is testable: `stars_count` runs 1.00 to 5.00 with no zeros.
+ */
+export function starFillPercent(stars) {
+  const value = Number(stars);
+  if (!Number.isFinite(value)) return 0;
+  return Math.max(0, Math.min(100, (value / 5) * 100));
+}

@@ -113,6 +113,12 @@ export const DEFAULT_METRO = DEMO_LOCATIONS[0];
  *
  * `_geoloc` is retrieved so `lib/format.js` can compute distance client-side.
  *
+ * `image_url` is **not** retrieved. Every value in the extract 302-redirects to the same
+ * 207x207 grey PNG — verified by hashing five of them, identical SHA-256 — so the photos
+ * are gone and retrieving the field would ship 24 dead URLs per page for nothing. The
+ * card renders a local placeholder instead. `reserve_url` is kept because it still
+ * works: it resolves to opentable.com/restaurant/profile/{id}/reserve.
+ *
  * `clickAnalytics` returns a queryID so a click or a booking can be attributed.
  * Conversion from search into bookings is the stated business goal (§1), so the
  * prototype has to be able to measure it.
@@ -141,26 +147,28 @@ const baseParams = {
     'stars_count',
     'reviews_count',
     'occasions',
-    'image_url',
     'reserve_url',
     'phone',
   ],
 
   attributesToHighlight: ['name', 'cuisine', 'cuisine_tags'],
 
-  facets: [
-    'cuisine',
-    'cuisine_tags',
-    'dining_style',
-    'price_range',
-    'occasions',
-    'city',
-    'market',
-    'neighborhood',
-  ],
-
   clickAnalytics: true,
 };
+
+/**
+ * `facets` is deliberately **not** declared here, and the reason is a bug this file
+ * caused.
+ *
+ * It was listed for a while on the grounds that stating the request shape in one place
+ * makes it reviewable. That was wrong: `facets` in `<Configure>` is not documentation,
+ * it is a competing declaration. It replaced the facet list that the `RefinementList`
+ * widgets build for themselves, and Algolia then silently dropped every facet filter —
+ * measured, a refinement of `cuisine: ["Italian"]` returned 5,000 hits instead of 890.
+ * The whole filter panel was inert.
+ *
+ * Each widget declares the facet it needs. Nothing else should.
+ */
 
 /**
  * PERSONA 1 — the query looks like a restaurant name.

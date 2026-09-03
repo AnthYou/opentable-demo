@@ -1,53 +1,48 @@
 import { Highlight } from 'react-instantsearch';
-import { resolveLocationLabel, formatPrice, formatRating } from '../lib/format.js';
+import { resolveLocationLabel, formatPrice, formatRating, initials, tileHue } from '../lib/format.js';
+import { Stars } from './Stars.jsx';
 import { EVENT_CLICKED, EVENT_BOOKED } from '../insights.js';
 
 /**
  * One result card.
  *
- * `Highlight` on the name is load-bearing rather than decorative: with typo tolerance
- * active a query for `naya` can return `Kaya`, and the result is only comprehensible if
- * the matched characters are marked.
+ * The composition follows the experience being replaced, because those codes are what a
+ * diner already knows how to read: a block on the left, the name, the rating, then one
+ * meta line of cuisine, place and price. What is modernised is everything else — the
+ * type scale, the spacing, a real hover state, and a rating that renders 4.3 as 4.3.
  *
- * `occasions` is deliberately absent from the card. CLAUDE.md §4 requires its provenance
- * — derived heuristically, not observed — to be stated wherever it is presented, and a
- * disclaimer on every card is noise. It appears instead on the curated entry points and
- * the facet, each carrying the note once.
+ * `Highlight` on the name is load-bearing rather than decorative: with typo tolerance
+ * active a query for `naya` can return `Kaya`, and the row only makes sense if the
+ * matched characters are marked.
+ *
+ * `occasions` is deliberately absent. CLAUDE.md §4 requires its provenance — derived
+ * heuristically, not observed — stated wherever it appears, and a disclaimer on every
+ * card is noise. It appears on the curated entry points and its facet, each carrying the
+ * note once.
  */
 export function Hit({ hit, userPosition, sendEvent }) {
   const location = resolveLocationLabel(hit, userPosition);
   const price = formatPrice(hit);
   const rating = formatRating(hit);
 
+  const meta = [hit.cuisine, location, price.label].filter(Boolean);
+
   return (
-    // The click event fires on the card, the conversion on the booking link. Both go
-    // through `sendEvent`, which is what attaches the queryID of the search that
-    // produced this hit — see `insights.js`.
     <article className="hit" onClick={() => sendEvent?.('click', hit, EVENT_CLICKED)}>
-      <img className="hit-image" src={hit.image_url} alt="" loading="lazy" width="120" height="90" />
+      <span className="hit-tile" style={{ '--tile-hue': tileHue(hit.objectID) }} aria-hidden="true">
+        {initials(hit.name)}
+      </span>
 
       <div className="hit-body">
         <h3 className="hit-name">
           <Highlight attribute="name" hit={hit} />
         </h3>
 
-        <p className="hit-location">
-          {location}
-          {hit.is_chain && hit.chain_name ? <span className="hit-chain"> · {hit.chain_name}</span> : null}
-        </p>
+        {rating ? <Stars stars={hit.stars_count} reviews={rating.reviews} /> : null}
 
-        <p className="hit-meta">
-          <span>{hit.cuisine}</span>
-          {price.glyphs ? <span title={price.label}> · {price.glyphs}</span> : null}
-          {hit.dining_style ? <span> · {hit.dining_style}</span> : null}
-        </p>
+        <p className="hit-meta">{meta.join(' · ')}</p>
 
-        {rating ? (
-          <p className="hit-rating">
-            <strong>{rating.stars}</strong>
-            {rating.reviews ? <span className="hit-reviews"> ({rating.reviews} reviews)</span> : null}
-          </p>
-        ) : null}
+        {hit.is_chain && hit.chain_name ? <p className="hit-chain">{hit.chain_name}</p> : null}
       </div>
 
       <a
@@ -63,7 +58,7 @@ export function Hit({ hit, userPosition, sendEvent }) {
           sendEvent?.('conversion', hit, EVENT_BOOKED);
         }}
       >
-        Book a table
+        Book
       </a>
     </article>
   );

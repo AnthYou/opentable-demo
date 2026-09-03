@@ -145,6 +145,41 @@ heuristic over dining style, price tier and cuisine. Two vocabulary terms stay t
 
 ---
 
+## The interface
+
+The composition follows the experience being replaced — a coloured header band with a
+prominent search box, a facet sidebar with counts, and result rows of block, name, rating
+and one meta line of cuisine, place and price. Those codes are what a diner already knows
+how to read, and
+[`resources/current-experience.png`](resources/current-experience.png) is the reference
+for them. Everything else is rebuilt: the palette uses OpenTable's current crimson rather
+than the screenshot's decade-old teal, and the type scale, spacing, hover and focus states
+are new. §10 is explicit that the screenshot is a reference for what to beat, not a target
+to reproduce.
+
+**There are no restaurant photographs, and that is the data's fault, not a shortcut.**
+Every `image_url` in the extract 302-redirects to the same 207×207 grey PNG — verified by
+hashing five of them, identical SHA-256. The card keeps its left-hand block because that
+is what gives the row its rhythm, and fills it with initials on a hue derived from the
+objectID: stable per restaurant, and clearly not a photograph. `reserve_url` still
+resolves, so "Book" goes to a real reservation page.
+
+Two bugs were found and fixed while building it, and both are recorded because the second
+one was mine and invisible:
+
+- **The whole filter panel was inert.** `facets` was declared in `<Configure>` on the
+  reasoning that stating the request shape in one place makes it reviewable. It is not
+  documentation — it is a competing declaration that replaces the facet list the
+  `RefinementList` widgets build for themselves, and Algolia then silently drops every
+  facet filter. Measured: a refinement of `cuisine: ["Italian"]` returned 5,000 hits
+  instead of 890, while the sidebar still showed correct counts. Removing it restores
+  refinement — Italian 890, Steakhouse 486, `date night` 1,639, all matching the
+  transform report.
+- **The curated entry points did nothing**, for the same reason. They set the refinement
+  correctly; the refinement was being dropped.
+
+---
+
 ## Trade-offs and what is still wrong
 
 **52 relevance cases: 40 pass, 6 accepted, 4 fail, 2 blocked.** Written before the index

@@ -21,8 +21,8 @@ import './App.css';
 
 /**
  * Resolves the user's position through the §5 fallback chain: browser geolocation, then
- * IP, then a default metro. Never leaves the user geo-blocked, and always reports which
- * rung is in use so the results can be explained.
+ * IP. Never leaves the user geo-blocked, and always reports which rung is in use so the
+ * results can be explained.
  */
 function useGeoPosition() {
   // Availability is knowable during render, so it is the initial state rather than a
@@ -55,18 +55,42 @@ function useGeoPosition() {
 }
 
 /**
- * §5: "tell the user which location is in use so the results are never unexplained."
- * `browseGeoParams` returns the label precisely so this can never be skipped.
+ * Location selector.
  *
- * Two states to explain, not one. While browsing, proximity is ranking the results and
- * the user needs to know from where. Once they type, location stops ranking and saying
- * otherwise would be a lie — so the banner says which signal is in charge.
+ * The corpus is a sparse national sample with gaps where you would not expect them —
+ * Chicago holds zero records, nearest 116 km away, and Boston, Atlanta and Seattle are
+ * the same. A demo driven only by the browser's position looks broken from any of them
+ * while behaving perfectly, so the position has to be selectable.
+ *
+ * "Use my location" is the default and keeps the browser-then-IP behaviour. The cities
+ * are the ten best-covered markets. Their record counts are deliberately not shown:
+ * `DEMO_LOCATIONS` carries `within25km` because it is what justifies curating the list,
+ * but a number beside a city in a search UI reads as a result count, and it is not one.
+ */
+function LocationPicker({ value, onChange }) {
+  return (
+    <div className="location-picker">
+      <label htmlFor="location">Near</label>
+      <select id="location" value={value} onChange={(event) => onChange(event.target.value)}>
+        <option value="">Use my location</option>
+        {DEMO_LOCATIONS.map((location) => (
+          <option key={location.label} value={location.label}>
+            {location.label}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+/**
+ * §5: "tell the user which location is in use so the results are never unexplained."
+ *
+ * `geoParams` reports which rung of the fallback chain is actually in use, and the banner
+ * has to say so. The IP rung gets a full sentence rather than a label, because "your
+ * approximate location" alone does not explain *why* it is approximate.
  */
 function GeoBanner({ status, source, label, byCategory, waiting }) {
-  // `geoParams` reports which rung of the fallback chain is actually in use, and the
-  // banner has to say so — §5: "tell the user which location is in use so the results
-  // are never unexplained". The IP rung gets a full sentence rather than a label,
-  // because "your approximate location" alone does not explain *why* it is approximate.
   const ranking = byCategory
     ? `Nearest to ${label} first, best rated within each area.`
     : `Ranked by how well the name matches. Distance from ${label} is shown, not ranked.`;
@@ -86,47 +110,10 @@ function GeoBanner({ status, source, label, byCategory, waiting }) {
   );
 }
 
-/**
- * Curated entry points for the empty query. §2: the empty-query state must be a
- * destination, not a dead end.
- *
- * `occasions` carries a visible provenance note because it is derived from
- * `dining_style` + `price_tier` + `cuisine` and is not customer data — CLAUDE.md §4
- * requires that to be stated up front wherever the attribute is presented.
- */
-const OCCASION_ENTRY_POINTS = ['date night', 'business lunch', 'family friendly', 'special occasion', 'group dinner'];
-const CUISINE_ENTRY_POINTS = ['Steakhouse', 'Italian', 'Japanese', 'Seafood', 'Mexican', 'French'];
-
-/**
- * Location selector.
- *
- * The corpus is a sparse national sample with gaps where you would not expect them —
- * Chicago holds zero records, nearest 116 km away, and Boston, Atlanta and Seattle are
- * the same. A demo driven only by the browser's position looks broken from any of them
- * while behaving perfectly, so the position has to be selectable.
- *
- * "Use my location" is the default and keeps the previous behaviour: browser position if
- * granted, an approximate position from the network otherwise. The cities are the ten
- * best-covered markets.
- *
- * Their record counts are deliberately *not* shown. `DEMO_LOCATIONS` carries
- * `within25km` because it is what justifies curating the list, but a number next to a
- * city in a search UI reads as a result count, and it is not one.
- */
-function LocationPicker({ value, onChange }) {
-  return (
-    <div className="location-picker">
-      <label htmlFor="location">Searching near</label>
-      <select id="location" value={value} onChange={(event) => onChange(event.target.value)}>
-        <option value="">Use my location</option>
-        {DEMO_LOCATIONS.map((location) => (
-          <option key={location.label} value={location.label}>
-            {location.label}
-          </option>
-        ))}
-      </select>
-    </div>
-  );
+/** Reads the query from context so the banner stays a pure component. */
+function HeaderBanner(props) {
+  const { indexUiState } = useInstantSearch();
+  return <GeoBanner {...props} byCategory={looksLikeCategory(indexUiState.query ?? '')} />;
 }
 
 /**
@@ -141,11 +128,23 @@ function SearchConfiguration({ geo }) {
   return <Configure {...paramsForQuery(query)} {...(geo?.params ?? {})} />;
 }
 
-/** Reads the query from context so the banner stays a pure component. */
-function HeaderBanner(props) {
-  const { indexUiState } = useInstantSearch();
-  return <GeoBanner {...props} byCategory={looksLikeCategory(indexUiState.query ?? '')} />;
-}
+/**
+ * Curated entry points for the empty query. §2: the empty-query state must be a
+ * destination, not a dead end.
+ *
+ * `occasions` carries a visible provenance note because it is derived from
+ * `dining_style` + `price_tier` + `cuisine` and is not customer data — CLAUDE.md §4
+ * requires that stated up front wherever the attribute is presented.
+ */
+const OCCASION_ENTRY_POINTS = [
+  { value: 'date night', hint: 'Fine dining and elegant rooms' },
+  { value: 'business lunch', hint: 'Steakhouses and quiet tables' },
+  { value: 'family friendly', hint: 'Casual, entry price tier' },
+  { value: 'special occasion', hint: 'The top price tier' },
+  { value: 'group dinner', hint: 'Shareable and communal' },
+];
+
+const CUISINE_ENTRY_POINTS = ['Steakhouse', 'Italian', 'Japanese', 'Seafood', 'Mexican', 'French', 'Thai', 'Indian'];
 
 function CuratedEntryPoints() {
   const { indexUiState, setIndexUiState } = useInstantSearch();
@@ -157,17 +156,18 @@ function CuratedEntryPoints() {
     setIndexUiState((prev) => ({ ...prev, refinementList: { ...prev.refinementList, [attribute]: [value] } }));
 
   return (
-    <section className="curated">
-      <h2>Start with an occasion</h2>
+    <section className="curated" aria-labelledby="curated-heading">
+      <h2 id="curated-heading">Start with an occasion</h2>
       <p className="provenance">
         Occasions are <strong>derived</strong> from dining style, price tier and cuisine — a heuristic, not
         observed customer behaviour. In production this attribute is replaced by event streams, content and
         reviews.
       </p>
-      <div className="chips">
-        {OCCASION_ENTRY_POINTS.map((value) => (
-          <button key={value} type="button" onClick={() => refine('occasions', value)}>
-            {value}
+      <div className="cards">
+        {OCCASION_ENTRY_POINTS.map(({ value, hint }) => (
+          <button key={value} type="button" className="card" onClick={() => refine('occasions', value)}>
+            <span className="card-title">{value}</span>
+            <span className="card-hint">{hint}</span>
           </button>
         ))}
       </div>
@@ -184,6 +184,17 @@ function CuratedEntryPoints() {
   );
 }
 
+/** One facet group, so the sidebar stays declarative rather than a wall of markup. */
+function Facet({ title, note, children }) {
+  return (
+    <section className="facet">
+      <h2>{title}</h2>
+      {note ? <p className="provenance">{note}</p> : null}
+      {children}
+    </section>
+  );
+}
+
 export default function App() {
   const { position: browserPosition, status } = useGeoPosition();
 
@@ -192,28 +203,17 @@ export default function App() {
   const selected = DEMO_LOCATIONS.find((location) => location.label === selectedLabel) ?? null;
   const position = selected ?? browserPosition;
 
-  // `discoveryGeoParams` decides the rung; App only decides whether the IP rung is still
-  // worth trying. `pending` sends no geo parameter at all rather than guessing, so the
-  // first paint is not silently ordered by the wrong location.
   /**
-   * Geo is never withdrawn, and that includes the wait.
-   *
-   * An earlier version returned null while the permission prompt was open, which meant
-   * the first request — and everything typed until the user answered — carried no geo at
-   * all. The prompt has no timeout the app controls: it stays open until dismissed.
-   *
-   * `geoParams(null)` falls through to `aroundLatLngViaIP`, which needs no permission and
-   * is resolved server-side, so proximity is present from the very first request and is
-   * simply upgraded to precise coordinates if and when the browser answers. The same path
-   * covers a denial and a browser with no geolocation API.
+   * Geo is never withdrawn, and that includes the wait. `geoParams(null)` falls through
+   * to `aroundLatLngViaIP`, which needs no permission and is resolved server-side, so
+   * proximity is present from the very first request and is simply upgraded to precise
+   * coordinates if and when the browser answers.
    */
   const geo = useMemo(() => geoParams(position), [position]);
 
-  // `<Hits hitComponent>` passes only `{ hit }`, so the user's position — which the
-  // third rung of the location-label fallback needs — is closed over here.
-  // `<Hits hitComponent>` passes only the record, so the user's position — which the
-  // third rung of the location-label fallback needs — is closed over here. A named
-  // declaration rather than an arrow plus `displayName`: assigning to the component
+  // `<Hits hitComponent>` passes only the record and `sendEvent`, so the user's position
+  // — which the third rung of the location-label fallback needs — is closed over here. A
+  // named declaration rather than an arrow plus `displayName`: assigning to the component
   // object is a mutation React treats as illegal.
   const HitComponent = useMemo(() => {
     function HitWithPosition({ hit, sendEvent }) {
@@ -221,7 +221,6 @@ export default function App() {
     }
     return HitWithPosition;
   }, [position]);
-
 
   return (
     <InstantSearch
@@ -233,48 +232,66 @@ export default function App() {
       <SearchConfiguration geo={geo} />
 
       <header className="app-header">
-        <h1>OpenTable — search &amp; discovery prototype</h1>
-        <SearchBox placeholder="Search restaurants, cuisines, neighborhoods" autoFocus />
-        <LocationPicker value={selectedLabel} onChange={setSelectedLabel} />
-        <HeaderBanner status={status} source={geo.source} label={geo.label} waiting={selected === null} />
+        <div className="app-header-inner">
+          <p className="brand">
+            OpenTable <span>search &amp; discovery prototype</span>
+          </p>
+          <div className="search-row">
+            <SearchBox
+              placeholder="Restaurant, cuisine or neighbourhood"
+              autoFocus
+              searchAsYouType
+              resetIconComponent={() => <span aria-hidden="true">✕</span>}
+              submitIconComponent={() => <span aria-hidden="true">Search</span>}
+            />
+            <LocationPicker value={selectedLabel} onChange={setSelectedLabel} />
+          </div>
+          <HeaderBanner status={status} source={geo.source} label={geo.label} waiting={selected === null} />
+        </div>
       </header>
 
       <CuratedEntryPoints />
 
       <div className="layout">
         <aside className="filters">
-          <ClearRefinements />
+          <div className="filters-head">
+            <h2>Filters</h2>
+            <ClearRefinements translations={{ resetButtonText: 'Clear all' }} />
+          </div>
 
-          <h2>Cuisine</h2>
-          <RefinementList attribute="cuisine" searchable searchablePlaceholder="Search cuisines" limit={8} showMore />
-
-          <h2>Style</h2>
-          <RefinementList attribute="cuisine_tags" limit={6} showMore />
-
-          <h2>Price</h2>
-          <RefinementList attribute="price_range" />
-
-          <h2>Dining style</h2>
-          <RefinementList attribute="dining_style" />
-
-          <h2>Occasion</h2>
-          <p className="provenance">Derived, not observed — see above.</p>
-          <RefinementList attribute="occasions" limit={7} />
-
-          <h2>Market</h2>
-          <RefinementList attribute="market" searchable limit={6} showMore />
-
-          <h2>City</h2>
-          <RefinementList attribute="city" searchable limit={6} showMore />
-
-          <h2>Neighborhood</h2>
-          <RefinementList attribute="neighborhood" searchable limit={6} showMore />
+          <Facet title="Cuisine">
+            <RefinementList attribute="cuisine" searchable searchablePlaceholder="Search cuisines" limit={8} showMore />
+          </Facet>
+          <Facet title="Style">
+            <RefinementList attribute="cuisine_tags" limit={6} showMore />
+          </Facet>
+          <Facet title="Price">
+            <RefinementList attribute="price_range" />
+          </Facet>
+          <Facet title="Dining style">
+            <RefinementList attribute="dining_style" />
+          </Facet>
+          <Facet title="Occasion" note="Derived from dining style, price and cuisine — not observed behaviour.">
+            <RefinementList attribute="occasions" limit={7} />
+          </Facet>
+          <Facet title="Market">
+            <RefinementList attribute="market" searchable limit={6} showMore />
+          </Facet>
+          <Facet title="City">
+            <RefinementList attribute="city" searchable limit={6} showMore />
+          </Facet>
+          <Facet title="Neighbourhood">
+            <RefinementList attribute="neighborhood" searchable limit={6} showMore />
+          </Facet>
         </aside>
 
         <main className="results">
           <div className="results-toolbar">
             <Stats />
-            <SortBy items={sortOptions} />
+            <label className="sort">
+              Sort
+              <SortBy items={sortOptions} />
+            </label>
           </div>
           <CurrentRefinements />
           <Hits hitComponent={HitComponent} />

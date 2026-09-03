@@ -564,6 +564,20 @@ src/
 public/                      # static assets served as-is
 ```
 
+**Never declare `facets` in `<Configure>`.** It looks like documentation — the request
+shape stated in one place — and it is a competing declaration. It replaces the facet list
+the `RefinementList` widgets build for themselves, and Algolia then silently drops every
+facet filter: measured, a refinement of `cuisine: ["Italian"]` returned 5,000 hits
+instead of 890, so the entire filter panel was inert while still showing correct counts.
+Each widget declares the facet it needs; nothing else should.
+
+**`image_url` is indexed but not retrieved.** Every value in the extract 302-redirects to
+the same 207×207 grey PNG — verified by hashing five of them, identical SHA-256 — so the
+photographs are gone. The result card renders a local placeholder instead: initials on a
+hue derived from the objectID, stable per restaurant and clearly not a photograph.
+`reserve_url` is kept and retrieved because it still resolves, to
+`opentable.com/restaurant/profile/{id}/reserve`.
+
 Flat `components/` is the InstantSearch convention — one component per custom
 widget. Resist inventing a deeper taxonomy: with a single surface and a single
 library there is no second axis to split on.
