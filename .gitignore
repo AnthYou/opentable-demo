@@ -30,3 +30,7 @@ dist-ssr
 # Generated artefacts (CLAUDE.md §6 — transform output)
 data/records.json
 data/enrichment-cache.json
+
+# Vercel CLI writes project/org ids here — not secret, but not repo content either.
+.vercel
+.env*
