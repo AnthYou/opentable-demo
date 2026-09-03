@@ -118,3 +118,18 @@ export function starFillPercent(stars) {
   if (!Number.isFinite(value)) return 0;
   return Math.max(0, Math.min(100, (value / 5) * 100));
 }
+
+/**
+ * Title-cases a controlled-vocabulary value for display.
+ *
+ * `occasions` is the only facet stored lowercase — the vocabulary in CLAUDE.md §4 is
+ * written that way — while `cuisine`, `cuisine_tags`, `dining_style` and `price_range` all
+ * arrive capitalised, so the panel read as inconsistent. Capitalising happens at display
+ * time and never in the data, because the stored value is load-bearing: it is what
+ * `filters` sends to Algolia and what the name-versus-category heuristic in
+ * `searchParams.js` matches a lowercased query against. Rewriting it would mean a
+ * re-transform and a re-index to change nothing but letter case.
+ */
+export function titleCase(value) {
+  return String(value ?? '').replace(/\b[a-z]/g, (c) => c.toUpperCase());
+}

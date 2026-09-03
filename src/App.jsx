@@ -15,6 +15,7 @@ import {
 import { searchClient, indexName, sortOptions } from './searchClient.js';
 import { paramsForQuery, looksLikeCategory, geoParams, DEMO_LOCATIONS } from './searchParams.js';
 import { Hit } from './components/Hit.jsx';
+import { titleCase } from './lib/format.js';
 import { insightsProps } from './insights.js';
 import { FilterPanel } from './components/FilterPanel.jsx';
 import './App.css';
@@ -166,7 +167,7 @@ function CuratedEntryPoints() {
       <div className="cards">
         {OCCASION_ENTRY_POINTS.map(({ value, hint }) => (
           <button key={value} type="button" className="card" onClick={() => refine('occasions', value)}>
-            <span className="card-title">{value}</span>
+            <span className="card-title">{titleCase(value)}</span>
             <span className="card-hint">{hint}</span>
           </button>
         ))}
@@ -271,7 +272,11 @@ export default function App() {
             <RefinementList attribute="dining_style" />
           </Facet>
           <Facet title="Occasion" note="Derived from dining style, price and cuisine — not observed behaviour.">
-            <RefinementList attribute="occasions" limit={7} />
+            <RefinementList
+              attribute="occasions"
+              limit={7}
+              transformItems={(items) => items.map((item) => ({ ...item, label: titleCase(item.label) }))}
+            />
           </Facet>
           <Facet title="Market">
             <RefinementList attribute="market" searchable searchablePlaceholder="Search markets" limit={6} showMore />
@@ -292,7 +297,23 @@ export default function App() {
               <SortBy items={sortOptions} />
             </label>
           </div>
-          <CurrentRefinements />
+          <CurrentRefinements
+            /*
+             * The chips echo the stored value, so they need the same treatment as the
+             * facet list — scoped to `occasions`, since every other attribute is already
+             * capitalised and blanket-casing would rewrite values such as `$30 and under`.
+             */
+            transformItems={(items) =>
+              items.map((item) =>
+                item.attribute === 'occasions'
+                  ? {
+                      ...item,
+                      refinements: item.refinements.map((r) => ({ ...r, label: titleCase(r.label) })),
+                    }
+                  : item
+              )
+            }
+          />
           <Hits hitComponent={HitComponent} />
           <Pagination padding={2} />
         </main>
