@@ -199,14 +199,38 @@
 .card {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
-  padding: 0.875rem 1rem;
+  /* No padding on the button itself: the illustration is full-bleed, so the inset moves to
+     `.card-body`. `overflow: hidden` is what makes the image corners follow the radius. */
+  overflow: hidden;
+  padding: 0;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--surface);
   text-align: left;
   cursor: pointer;
   transition: border-color 0.12s, box-shadow 0.12s, transform 0.12s;
+}
+
+.card-image {
+  display: block;
+  width: 100%;
+  height: 112px;
+  /* `cover` rather than `contain`: the crops were chosen at 480x260 and the card is
+     narrower than that on a wide screen, so the picture has to fill rather than letterbox. */
+  object-fit: cover;
+  background: var(--surface-2);
+  transition: transform 0.25s ease;
+}
+
+.card:hover .card-image {
+  transform: scale(1.04);
+}
+
+.card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  padding: 0.75rem 0.875rem 0.875rem;
 }
 
 .card:hover {
@@ -216,9 +240,15 @@
 }
 
 .card-title {
+  /*
+   * No `text-transform: capitalize` here any more. `titleCase()` in `lib/format.js` is the
+   * single definition of how a stored lowercase vocabulary is displayed, and it has to be,
+   * because the facet list and the refinement chips cannot be reached from CSS. Keeping the
+   * declaration as well left two mechanisms doing one job — the trap being that editing the
+   * function would appear to have no effect here.
+   */
   font-size: 0.9375rem;
   font-weight: 600;
-  text-transform: capitalize;
 }
 
 .card-hint {
@@ -233,13 +263,29 @@
 }
 
 .chips button {
-  padding: 0.4rem 0.875rem;
+  display: inline-flex;
+  gap: 0.5rem;
+  align-items: center;
+  /* Tighter on the left than the right: the thumbnail needs less breathing room against the
+     pill edge than the label does, and matching them makes the picture look inset. */
+  padding: 0.3125rem 0.875rem 0.3125rem 0.375rem;
   border: 1px solid var(--line);
   border-radius: 999px;
   background: var(--surface);
   font-size: 0.875rem;
   cursor: pointer;
   transition: border-color 0.12s, color 0.12s, background 0.12s;
+}
+
+.chip-image {
+  display: block;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--surface-2);
+  object-fit: cover;
+  /* Never let the pill's flex layout squeeze the circle into an ellipse. */
+  flex: none;
 }
 
 .chips button:hover {

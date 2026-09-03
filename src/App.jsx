@@ -147,6 +147,38 @@ const OCCASION_ENTRY_POINTS = [
 
 const CUISINE_ENTRY_POINTS = ['Steakhouse', 'Italian', 'Japanese', 'Seafood', 'Mexican', 'French', 'Thai', 'Indian'];
 
+/**
+ * Illustration for an entry point.
+ *
+ * The file name is derived from the value by convention — `date night` resolves to
+ * `/img/occasion-date-night.jpg` — so there is no second list to drift out of sync with
+ * the vocabulary above. A value with no matching file loses its picture and nothing else:
+ * the handler removes the element rather than leaving the browser's broken-image glyph.
+ *
+ * Local files rather than remote URLs, deliberately. Every `image_url` in the extract is a
+ * decade-old link that now 302-redirects to the same grey placeholder (CLAUDE.md §6), which
+ * is the whole argument against depending on somebody else's host for the pictures a demo
+ * is judged on. These are served from `public/`.
+ *
+ * `alt=""` because they are decorative: the button already carries its label as text, and
+ * describing the photograph would only make a screen reader read each entry point twice.
+ */
+function EntryImage({ kind, value, className }) {
+  const slug = value.toLowerCase().replace(/\s+/g, '-');
+  return (
+    <img
+      className={className}
+      src={`/img/${kind}-${slug}.jpg`}
+      alt=""
+      loading="lazy"
+      decoding="async"
+      onError={(event) => {
+        event.currentTarget.style.display = 'none';
+      }}
+    />
+  );
+}
+
 function CuratedEntryPoints() {
   const { indexUiState, setIndexUiState } = useInstantSearch();
   const hasQuery = Boolean(indexUiState.query);
@@ -167,8 +199,11 @@ function CuratedEntryPoints() {
       <div className="cards">
         {OCCASION_ENTRY_POINTS.map(({ value, hint }) => (
           <button key={value} type="button" className="card" onClick={() => refine('occasions', value)}>
-            <span className="card-title">{titleCase(value)}</span>
-            <span className="card-hint">{hint}</span>
+            <EntryImage kind="occasion" value={value} className="card-image" />
+            <span className="card-body">
+              <span className="card-title">{titleCase(value)}</span>
+              <span className="card-hint">{hint}</span>
+            </span>
           </button>
         ))}
       </div>
@@ -177,6 +212,7 @@ function CuratedEntryPoints() {
       <div className="chips">
         {CUISINE_ENTRY_POINTS.map((value) => (
           <button key={value} type="button" onClick={() => refine('cuisine', value)}>
+            <EntryImage kind="cuisine" value={value} className="chip-image" />
             {value}
           </button>
         ))}

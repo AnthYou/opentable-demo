@@ -164,6 +164,48 @@ is what gives the row its rhythm, and fills it with initials on a hue derived fr
 objectID: stable per restaurant, and clearly not a photograph. `reserve_url` still
 resolves, so "Book" goes to a real reservation page.
 
+**The entry points do carry photographs, and they are a different thing entirely.** The
+occasion cards and cuisine chips are illustrated from thirteen stock photographs under the
+[Unsplash License](https://unsplash.com/license), which permits commercial use without
+attribution — credited below anyway, because a repo full of unexplained binaries is a repo
+nobody can maintain. They illustrate a *category*, never a specific restaurant, so nothing
+here implies a photograph of a record that has none.
+
+They are committed to `public/img/` rather than hotlinked, and that choice is the direct
+lesson of the paragraph above: the extract's own image URLs are a decade-old dependency on
+somebody else's host that has since rotted, and a demo is judged live. Local files also
+survive a conference network. 232 kB for all thirteen — occasion banners at 480×260,
+cuisine thumbnails at 96×96.
+
+The file name is derived from the facet value by convention, `date night` resolving to
+`/img/occasion-date-night.jpg`, so there is no second list to drift out of sync with the
+vocabulary. A value with no matching file loses its picture and nothing else.
+
+<details>
+<summary>Photo credits — Unsplash photo IDs</summary>
+
+| entry point | Unsplash photo ID |
+|---|---|
+| occasion: date night | `photo-1414235077428-338989a2e8c0` |
+| occasion: business lunch | `photo-1517248135467-4c7edcad34c4` |
+| occasion: family friendly | `photo-1567620905732-2d1ec7ab7445` |
+| occasion: special occasion | `photo-1467003909585-2f8a72700288` |
+| occasion: group dinner | `photo-1528605248644-14dd04022da1` |
+| cuisine: Steakhouse | `photo-1600891964092-4316c288032e` |
+| cuisine: Italian | `photo-1565299624946-b28f40a0ae38` |
+| cuisine: Japanese | `photo-1579584425555-c3ce17fd4351` |
+| cuisine: Seafood | `photo-1476224203421-9ac39bcb3327` |
+| cuisine: Mexican | `photo-1551504734-5ee1c4a1479b` |
+| cuisine: French | `photo-1543826173-70651703c5a4` |
+| cuisine: Thai | `photo-1504674900247-0877df9cc836` |
+| cuisine: Indian | `photo-1585937421612-70a008356fbe` |
+
+Each resolves at `https://images.unsplash.com/<id>`. Every one was opened and inspected at
+its final crop before being committed — a URL returning HTTP 200 says nothing about whether
+the photograph shows sushi.
+
+</details>
+
 Two bugs were found and fixed while building it, and both are recorded because the second
 one was mine and invisible:
 

@@ -591,6 +591,15 @@ hue derived from the objectID, stable per restaurant and clearly not a photograp
 `reserve_url` is kept and retrieved because it still resolves, to
 `opentable.com/restaurant/profile/{id}/reserve`.
 
+**The curated entry points are illustrated, and that does not contradict the paragraph
+above.** The occasion cards and cuisine chips carry thirteen stock photographs under the
+Unsplash License, committed to `public/img/` and named by convention from the facet value
+(`date night` resolves to `/img/occasion-date-night.jpg`). They illustrate a *category*,
+never a record, so no restaurant is ever shown a photograph it does not have. Local files
+rather than hotlinks for exactly the reason `image_url` is dead: a decade-old dependency on
+another host is what rotted in the first place, and a demo is judged live. Credits and photo
+IDs are in the README.
+
 Flat `components/` is the InstantSearch convention — one component per custom
 widget. Resist inventing a deeper taxonomy: with a single surface and a single
 library there is no second axis to split on.
