@@ -481,7 +481,26 @@
   font-weight: 600;
 }
 
+/*
+ * The theme leaves this wrapper `display: flex` with no `align-items`, so it defaults to
+ * `stretch` — and it also gives the delete button `height: 100%`. The button box therefore
+ * grew to the full height of the chip while its glyph stayed on its own first line, which
+ * is what made the cross ride high against the value. Centring here fixes the pair.
+ */
+.ais-CurrentRefinements-category {
+  align-items: center;
+}
+
 .ais-CurrentRefinements-delete {
+  display: flex;
+  align-items: center;
+  /* Undo the theme's `height: 100%`, or the box keeps stretching and centring has nothing
+     to centre against. */
+  height: auto;
+  /* Left padding only: it separates the cross from the value it removes. On top of the
+     theme's own 0.25rem margin that comes to 0.625rem of clear space, while the right side
+     stays tight against the chip's border. */
+  padding: 0 0.0625rem 0 0.375rem;
   border: 0;
   background: none;
   color: var(--brand-dark);
