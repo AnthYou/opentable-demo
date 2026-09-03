@@ -533,6 +533,7 @@ CLAUDE.md
 README.md                    # approach, decisions, trade-offs, next steps
 test-queries.md              # relevance test cases + before/after results
 .env                         # not committed — see the key convention below
+.env.example                 # committed: the four variable names, no values
 index.html                   # Vite entry point
 vite.config.js
 package.json
