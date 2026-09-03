@@ -1,184 +1,215 @@
-.counter {
-  font-size: 16px;
-  padding: 5px 10px;
-  border-radius: 5px;
+/*
+ * Layout only. Widget chrome comes from the InstantSearch satellite theme imported in
+ * main.jsx, so this file stays small on purpose — reproducing
+ * resources/current-experience.png is explicitly out of scope (CLAUDE.md §10); that
+ * screenshot documents the experience being replaced, not a target.
+ */
+
+:root {
+  --ink: #23263b;
+  --muted: #6b7280;
+  --line: #e5e7eb;
+  --accent: #b02a30;
+  --bg: #ffffff;
+}
+
+body {
+  margin: 0;
+  color: var(--ink);
+  background: var(--bg);
+  font: 16px/1.5 -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+.app-header {
+  padding: 1.5rem clamp(1rem, 4vw, 3rem) 1rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.app-header h1 {
+  margin: 0 0 1rem;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.geo-banner {
+  margin: 0.75rem 0 0;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.curated {
+  padding: 1.5rem clamp(1rem, 4vw, 3rem);
+  border-bottom: 1px solid var(--line);
+}
+
+.curated h2 {
+  margin: 1.25rem 0 0.5rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.curated h2:first-child {
+  margin-top: 0;
+}
+
+.provenance {
+  max-width: 62ch;
+  margin: 0 0 0.75rem;
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.chips button {
+  padding: 0.4rem 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--bg);
+  color: inherit;
+  font: inherit;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.chips button:hover {
+  border-color: var(--accent);
   color: var(--accent);
-  background: var(--accent-bg);
-  border: 2px solid transparent;
-  transition: border-color 0.3s;
-  margin-bottom: 24px;
+}
 
-  &:hover {
-    border-color: var(--accent-border);
-  }
-  &:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 2px;
+.layout {
+  display: grid;
+  grid-template-columns: minmax(200px, 260px) 1fr;
+  gap: clamp(1rem, 3vw, 2.5rem);
+  align-items: start;
+  padding: 1.5rem clamp(1rem, 4vw, 3rem) 3rem;
+}
+
+@media (max-width: 800px) {
+  .layout {
+    grid-template-columns: 1fr;
   }
 }
 
-.hero {
-  position: relative;
-
-  .base,
-  .framework,
-  .vite {
-    inset-inline: 0;
-    margin: 0 auto;
-  }
-
-  .base {
-    width: 170px;
-    position: relative;
-    z-index: 0;
-  }
-
-  .framework,
-  .vite {
-    position: absolute;
-  }
-
-  .framework {
-    z-index: 1;
-    top: 34px;
-    height: 28px;
-    transform: perspective(2000px) rotateZ(300deg) rotateX(44deg) rotateY(39deg)
-      scale(1.4);
-  }
-
-  .vite {
-    z-index: 0;
-    top: 107px;
-    height: 26px;
-    width: auto;
-    transform: perspective(2000px) rotateZ(300deg) rotateX(40deg) rotateY(39deg)
-      scale(0.8);
-  }
+.filters h2 {
+  margin: 1.5rem 0 0.5rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
 }
 
-#center {
+.results-toolbar {
   display: flex;
-  flex-direction: column;
-  gap: 25px;
-  place-content: center;
-  place-items: center;
-  flex-grow: 1;
-
-  @media (max-width: 1024px) {
-    padding: 32px 20px 24px;
-    gap: 18px;
-  }
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
 }
 
-#next-steps {
-  display: flex;
-  border-top: 1px solid var(--border);
-  text-align: left;
+/* --- hit card --- */
 
-  & > div {
-    flex: 1 1 0;
-    padding: 32px;
-    @media (max-width: 1024px) {
-      padding: 24px 20px;
-    }
-  }
-
-  .icon {
-    margin-bottom: 16px;
-    width: 22px;
-    height: 22px;
-  }
-
-  @media (max-width: 1024px) {
-    flex-direction: column;
-    text-align: center;
-  }
+.ais-Hits-list {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
 }
 
-#docs {
-  border-right: 1px solid var(--border);
-
-  @media (max-width: 1024px) {
-    border-right: none;
-    border-bottom: 1px solid var(--border);
-  }
-}
-
-#next-steps ul {
-  list-style: none;
+.ais-Hits-item {
   padding: 0;
-  display: flex;
-  gap: 8px;
-  margin: 32px 0 0;
-
-  .logo {
-    height: 18px;
-  }
-
-  a {
-    color: var(--text-h);
-    font-size: 16px;
-    border-radius: 6px;
-    background: var(--social-bg);
-    display: flex;
-    padding: 6px 12px;
-    align-items: center;
-    gap: 8px;
-    text-decoration: none;
-    transition: box-shadow 0.3s;
-
-    &:hover {
-      box-shadow: var(--shadow);
-    }
-    .button-icon {
-      height: 18px;
-      width: 18px;
-    }
-  }
-
-  @media (max-width: 1024px) {
-    margin-top: 20px;
-    flex-wrap: wrap;
-    justify-content: center;
-
-    li {
-      flex: 1 1 calc(50% - 8px);
-    }
-
-    a {
-      width: 100%;
-      justify-content: center;
-      box-sizing: border-box;
-    }
-  }
+  box-shadow: none;
+  border: 1px solid var(--line);
+  border-radius: 6px;
 }
 
-#spacer {
-  height: 88px;
-  border-top: 1px solid var(--border);
-  @media (max-width: 1024px) {
-    height: 48px;
-  }
-}
-
-.ticks {
-  position: relative;
+.hit {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  grid-template-areas: 'image body' 'image book';
+  gap: 0 0.875rem;
   width: 100%;
+  padding: 0.75rem;
+}
 
-  &::before,
-  &::after {
-    content: '';
-    position: absolute;
-    top: -4.5px;
-    border: 5px solid transparent;
-  }
+.hit-image {
+  grid-area: image;
+  width: 120px;
+  height: 90px;
+  object-fit: cover;
+  border-radius: 4px;
+  background: #f3f4f6;
+}
 
-  &::before {
-    left: 0;
-    border-left-color: var(--border);
-  }
-  &::after {
-    right: 0;
-    border-right-color: var(--border);
-  }
+.hit-body {
+  grid-area: body;
+  min-width: 0;
+}
+
+.hit-name {
+  margin: 0 0 0.25rem;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.hit-name mark {
+  padding: 0;
+  background: #fdf0c8;
+  color: inherit;
+}
+
+.hit-location,
+.hit-meta,
+.hit-rating {
+  margin: 0 0 0.125rem;
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+
+.hit-chain {
+  font-style: italic;
+}
+
+.hit-rating strong {
+  color: var(--ink);
+}
+
+.hit-book {
+  grid-area: book;
+  align-self: end;
+  justify-self: start;
+  margin-top: 0.5rem;
+  padding: 0.35rem 0.75rem;
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  color: var(--accent);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.hit-book:hover {
+  background: var(--accent);
+  color: #fff;
+}
+
+/* --- boot failure, rendered by main.jsx when configuration is missing --- */
+
+.boot-error {
+  max-width: 60ch;
+  margin: 4rem auto;
+  padding: 0 1.5rem;
+}
+
+.boot-error pre {
+  padding: 0.875rem;
+  border-left: 3px solid var(--accent);
+  background: #fdf2f2;
+  font-size: 0.8125rem;
+  white-space: pre-wrap;
 }

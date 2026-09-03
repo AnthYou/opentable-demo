@@ -82,6 +82,12 @@ export const DEFAULT_METRO = {
  * wherever it is true — on 18 records across 9 same-city chain clusters the label alone
  * renders identically (Fleming's Scottsdale 40036 and 39919 both read "Scottsdale").
  * `test-queries.md` K18 and C2 fail until that happens.
+ *
+ * `address` is retrieved for the same reason, and was added after writing the consumer:
+ * distance completes the label only when the user's position is known, and geolocation
+ * can be declined. With no position the address is the only remaining discriminator
+ * between two ambiguous chain siblings. It is retrieved, not searched — it was removed
+ * from `searchableAttributes` on 2026-09-03 for injecting typo-plus-prefix noise.
  */
 export const knownItemParams = {
   hitsPerPage: 5,
@@ -92,6 +98,7 @@ export const knownItemParams = {
     'chain_name',
     'location_label',
     'location_label_ambiguous',
+    'address',
     'city',
     'state',
     '_geoloc',
