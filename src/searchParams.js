@@ -59,6 +59,15 @@ const PRECISION_NEUTRAL_THRESHOLD_METRES = 10000000;
  * Last rung of the geo fallback chain. §5: never leave the user geo-blocked — browser
  * position, then IP, then a default metro, and tell the user which is in use.
  *
+ * **Reachability is a stated limitation.** The app resolves the first two rungs on its
+ * own: precise coordinates when the browser grants them, `aroundLatLngViaIP` otherwise —
+ * including while the permission prompt is still open, since it needs no permission. The
+ * third rung fires only when the IP lookup itself yields nothing, and a client cannot
+ * detect that: Algolia resolves the IP server-side and a failure looks like results that
+ * simply are not geo-ordered. So this rung is reachable only through an explicit
+ * `ipFallback: false`, which nothing in the app currently passes. It stays because a city
+ * selector — the obvious next control — would use exactly this path.
+ *
  * New York because it is the densest part of the corpus by a wide margin: 695 records in
  * the city and 1,414 in the `New York / Tri-State Area` market, 28% of all 5,000. A
  * default metro with thin coverage would make the fallback look broken. Coordinates are

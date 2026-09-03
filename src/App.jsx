@@ -14,7 +14,7 @@ import {
 } from 'react-instantsearch';
 
 import { searchClient, indexName, sortOptions } from './searchClient.js';
-import { paramsForQuery, looksLikeCategory, geoParams, DEFAULT_METRO } from './searchParams.js';
+import { paramsForQuery, looksLikeCategory, geoParams } from './searchParams.js';
 import { Hit } from './components/Hit.jsx';
 import './App.css';
 
@@ -62,26 +62,15 @@ function useGeoPosition() {
  * otherwise would be a lie — so the banner says which signal is in charge.
  */
 function GeoBanner({ status, label, byCategory }) {
-  const where = {
-    pending: 'your location',
-    granted: label,
-    denied: `${label} (from your network)`,
-    unavailable: DEFAULT_METRO.label,
-  }[status];
-
-  if (status === 'pending') {
-    return (
-      <p className="geo-banner" role="status">
-        Finding your location…
-      </p>
-    );
-  }
+  // The label comes from `geoParams`, which knows which rung of the fallback chain is
+  // actually in use — the status only adds that a more precise position may still arrive.
+  const pending = status === 'pending' ? ' Still asking your browser for a precise position.' : '';
 
   return (
     <p className="geo-banner" role="status">
       {byCategory
-        ? `Nearest to ${where} first, best rated within each area.`
-        : `Ranked by how well the name matches. Distance from ${where} is shown, not ranked.`}
+        ? `Nearest to ${label} first, best rated within each area.${pending}`
+        : `Ranked by how well the name matches. Distance from ${label} is shown, not ranked.${pending}`}
     </p>
   );
 }
@@ -158,12 +147,19 @@ export default function App() {
   // `discoveryGeoParams` decides the rung; App only decides whether the IP rung is still
   // worth trying. `pending` sends no geo parameter at all rather than guessing, so the
   // first paint is not silently ordered by the wrong location.
-  // Geo coordinates are sent as soon as a position is resolvable, and never withdrawn.
-  // `pending` sends none only because there is nothing yet to send.
-  const geo = useMemo(() => {
-    if (status === 'pending') return null;
-    return geoParams(position, { ipFallback: status !== 'unavailable' });
-  }, [position, status]);
+  /**
+   * Geo is never withdrawn, and that includes the wait.
+   *
+   * An earlier version returned null while the permission prompt was open, which meant
+   * the first request — and everything typed until the user answered — carried no geo at
+   * all. The prompt has no timeout the app controls: it stays open until dismissed.
+   *
+   * `geoParams(null)` falls through to `aroundLatLngViaIP`, which needs no permission and
+   * is resolved server-side, so proximity is present from the very first request and is
+   * simply upgraded to precise coordinates if and when the browser answers. The same path
+   * covers a denial and a browser with no geolocation API.
+   */
+  const geo = useMemo(() => geoParams(position), [position]);
 
   // `<Hits hitComponent>` passes only `{ hit }`, so the user's position — which the
   // third rung of the location-label fallback needs — is closed over here.
@@ -186,7 +182,7 @@ export default function App() {
       <header className="app-header">
         <h1>OpenTable — search &amp; discovery prototype</h1>
         <SearchBox placeholder="Search restaurants, cuisines, neighborhoods" autoFocus />
-        <HeaderBanner status={status} label={geo?.label ?? DEFAULT_METRO.label} />
+        <HeaderBanner status={status} label={geo.label} />
       </header>
 
       <CuratedEntryPoints />
