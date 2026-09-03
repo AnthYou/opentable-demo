@@ -1,11 +1,12 @@
 /**
  * searchClient.js — the single Algolia client, shared by both search contexts.
  *
- * One client, deliberately. The header Autocomplete.js box and the InstantSearch page
- * below it must not share *parameters* (CLAUDE.md §6) — geo weighting, `aroundRadius`,
- * `hitsPerPage` and returned attributes differ per journey — but there is no reason for
- * them to open two connections. The separation lives in `searchParams.js`; this file
- * only answers "which index, with which key".
+ * One client, deliberately. The header dropdown and the results page below it must not
+ * share *parameters* (CLAUDE.md §6) — geo weighting, `aroundRadius`, `hitsPerPage` and
+ * returned attributes differ per journey — but they are two contexts of one application,
+ * served by one library, and there is no reason for them to open two connections. The
+ * separation lives in `searchParams.js`; this file only answers "which index, with which
+ * key".
  *
  * Nothing else belongs here: no parameters, no widgets, no Insights wiring.
  */

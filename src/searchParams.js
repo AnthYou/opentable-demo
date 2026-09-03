@@ -1,11 +1,19 @@
 /**
  * searchParams.js — the two parameter sets, side by side.
  *
- * The header Autocomplete.js box and the InstantSearch page below it share one client
+ * The header dropdown and the results page below it share one client
  * (`searchClient.js`) and must **not** share parameters (CLAUDE.md §6). Geo weighting,
  * `aroundRadius`, `hitsPerPage` and returned attributes all differ per journey. They are
  * declared in one file so the difference can be read at a glance instead of being
  * reconstructed from two component trees.
+ *
+ * The known-item set is consumed by `<Autocomplete indices[].searchParameters>`, which
+ * mounts an isolated `<Index>` with its own `<Configure>`; the discovery set is the
+ * page's `<Configure>`. Two requests, one library, one input — verified by interception:
+ * 5 hits / 13 attributes / no geo against 24 hits / 23 attributes / 8 facets / geo.
+ *
+ * Sharing one set was measured and rejected: 42/50 test cases to 38/50. See the change
+ * log in `test-queries.md`.
  *
  * ─────────────────────────────────────────────────────────────────────────────────────
  * THE LOAD-BEARING RULE

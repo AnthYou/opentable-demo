@@ -383,9 +383,25 @@ the specific pair the change is meant to fix, and the pair it puts at risk.
 
 ### Geo strategy — the known-item / proximity conflict
 
-Distance must not dominate ranking on the known-item journey. A user searching
-"Nobu" from Denver wants Nobu, not the nearest bistro. Ranking geo first is the
-single easiest way to make search feel worse than the experience it replaces.
+Distance must not dominate ranking on the known-item journey — but the reason
+originally given here was wrong, and wrong in a way that made the risk untestable.
+
+The claim was that a user searching "Nobu" from Denver would get the nearest bistro.
+**Measured, that cannot happen.** `geo` is a ranking criterion, not a filter: it
+reorders records that already match the text, and a bistro does not match `nobu`. With
+geo parameters sent on every query, `nobu` still returns only the 18 records matching
+it and no Denver restaurant enters at all — test-queries.md G1 passes either way.
+
+The real harm is narrower and sharper: on a short ambiguous name, the nearer record
+that *also* matches the word wins. `Ocean Prime - Denver` (2 km) displaces 117067
+`Prime` (1,062 km); `Barley & Rye` displaces `Rye`; `Workshop at UNION` displaces
+`Union`. That is a testable failure, and it is what the parameter separation prevents.
+
+Note the inverse, also measured: geo *helps* chain queries. From Denver, `ruths chris`
+puts Ruth's Chris Denver first, `benihanna` puts Benihana Denver first, `pappas bros`
+puts Dallas ahead of Houston. Proximity is exactly the disambiguation persona 1 asked
+for on a chain. So this is not a blanket harm, which is why the answer is per-context
+parameters rather than a global choice.
 
 Resolution, per journey:
 
@@ -404,11 +420,17 @@ the results are never unexplained.
 
 ## 6. Stack and repo layout
 
-Front end: **Vite + React InstantSearch, with Autocomplete.js for the search
-box.** This is Algolia's documented reference integration for a header search
-box with instant suggestions sitting above a results experience — the two
-personas map onto it directly, and it is worth more than a bespoke structure
-because it is the pattern a reviewer already knows.
+Front end: **Vite + React InstantSearch, and nothing else.** The header box with
+its dropdown is InstantSearch's own `<Autocomplete>` widget, not a second library.
+
+This corrects an earlier decision. The original plan paired InstantSearch with
+Autocomplete.js on the grounds that the combination was Algolia's documented
+reference integration for a dropdown sitting above a results experience. That was
+true when it was written and is no longer: `react-instantsearch@7.48` ships a
+first-class `<Autocomplete>` widget that takes `indices[].searchParameters`,
+`itemComponent`, `headerComponent`, `noResultsComponent`, recent searches and a
+detached mobile mode. One library means one state model, one URL sync, one Insights
+wiring and one hit renderer instead of two of each — and it removed five packages.
 
 The starter shipped with the dataset is pinned to Node 9 and
 `parcel-bundler@1.9.7`, both unmaintained and carrying critical transitive
@@ -424,19 +446,34 @@ This is a single app with a single search box, not two experiences the user has
 to choose between. The same box serves both personas, which is the point of the
 demo:
 
-- **The header box and its dropdown** — Autocomplete.js. Persona 1: known-item.
-  Text relevance leads, few hits, distance shown for disambiguation.
-- **The page below** — InstantSearch. Persona 2: discovery. Curated entry points
+The personas are **intents, not surfaces**. One page serves both:
+
+- **The header box and its dropdown** — the `<Autocomplete>` widget. Persona 1:
+  known-item. Text relevance leads, five hits, distance shown for disambiguation.
+- **The page below** — the main index. Persona 2: discovery. Curated entry points
   on an empty query, then results with facets, sorts and geo-aware ranking.
 
 Selecting a suggestion in the dropdown goes straight to the restaurant;
-submitting the query lands in the results grid.
+submitting the query lands in the results grid. One keystroke drives both.
 
-The two contexts **must not share search parameters** — geo weighting,
-`aroundRadius`, `hitsPerPage` and returned attributes differ per section 5.
-Using two libraries makes that separation structural rather than a convention
-to police. Declare both parameter sets side by side in `src/searchParams.js`,
-with the reasoning inline, so they can be compared at a glance.
+The two contexts **must not share search parameters**, and this is the constraint
+that survived the library change. The widget mounts an isolated `<Index>` carrying
+its own `<Configure>`, so `indices[].searchParameters` and the page's `<Configure>`
+produce two independent requests. Verified by interception on the query `prime`:
+the dropdown request asks for 5 hits, 13 attributes, no facets and **no geo
+parameter**; the page request asks for 24 hits, 23 attributes, 8 facets and
+`aroundLatLng` + `aroundRadius` + `aroundPrecision`.
+
+Declare both sets side by side in `src/searchParams.js`, with the reasoning inline.
+The separation is held there and by its boot-time assertion — not by the choice of
+library, which is what the earlier plan wrongly relied on.
+
+**Sharing one set was measured and rejected: 42/50 test cases to 38/50.** On short
+ambiguous names the nearer record that also matches the word displaces the exact
+name — `Ocean Prime - Denver` (2 km) beats 117067 `Prime` (1,062 km) on `prime`,
+`Barley & Rye` beats `Rye` on `rye`, `Workshop at UNION` beats `Union` on `union`.
+The widget mounts its isolated index lazily, on first focus unless `autoFocus` is
+set, so the known-item request costs nothing until the user engages.
 
 ```
 CLAUDE.md
@@ -468,7 +505,7 @@ src/
   searchClient.js            # single Algolia client, search-only key
   searchParams.js            # both parameter sets, declared side by side
   insights.js                # queryID propagation, click + conversion events
-  autocomplete/              # Autocomplete.js instance and its sources
+  autocomplete/              # item renderer for the <Autocomplete> widget
   components/                # custom InstantSearch widgets (Hit, Facets, SortBy, …)
   lib/                       # shared formatters (location_label, distance, price)
 public/                      # static assets served as-is

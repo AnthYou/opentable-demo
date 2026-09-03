@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
+  Autocomplete,
   ClearRefinements,
   Configure,
   CurrentRefinements,
@@ -7,15 +8,15 @@ import {
   InstantSearch,
   Pagination,
   RefinementList,
-  SearchBox,
   SortBy,
   Stats,
   useInstantSearch,
 } from 'react-instantsearch';
 
 import { searchClient, indexName, sortOptions } from './searchClient.js';
-import { discoveryParams, discoveryGeoParams, DEFAULT_METRO } from './searchParams.js';
+import { discoveryParams, discoveryGeoParams, knownItemParams, DEFAULT_METRO } from './searchParams.js';
 import { Hit } from './components/Hit.jsx';
+import { SuggestionItem } from './autocomplete/SuggestionItem.jsx';
 import './App.css';
 
 /**
@@ -133,13 +134,23 @@ export default function App() {
 
   // `<Hits hitComponent>` passes only `{ hit }`, so the user's position — which the
   // third rung of the location-label fallback needs — is closed over here.
+  // `<Hits hitComponent>` and `<Autocomplete indices[].itemComponent>` both pass only
+  // the record, so the user's position — which the third rung of the location-label
+  // fallback needs — is closed over here. Named declarations rather than arrows plus
+  // `displayName`: assigning to the component object is a mutation React treats as
+  // illegal.
   const HitComponent = useMemo(() => {
-    // A named declaration rather than an arrow plus `displayName`: assigning to the
-    // component object is a mutation React treats as illegal.
     function HitWithPosition({ hit }) {
       return <Hit hit={hit} userPosition={position} />;
     }
     return HitWithPosition;
+  }, [position]);
+
+  const SuggestionComponent = useMemo(() => {
+    function SuggestionWithPosition({ item, onSelect }) {
+      return <SuggestionItem item={item} onSelect={onSelect} userPosition={position} />;
+    }
+    return SuggestionWithPosition;
   }, [position]);
 
   return (
@@ -149,11 +160,30 @@ export default function App() {
       <header className="app-header">
         <h1>OpenTable — search &amp; discovery prototype</h1>
         {/*
-          Interim control. §6 gives the header box to Autocomplete.js in `src/autocomplete/`,
-          which serves persona 1 with its own parameter set; this InstantSearch SearchBox
-          drives the discovery page until that lands.
+          One input, two contexts, one library.
+
+          The widget issues its own query against `indices[].searchParameters` — the
+          known-item set, which carries no geo parameter — and renders those five hits in
+          the dropdown. The same keystroke drives the main index query below, which uses
+          the discovery `<Configure>` and does lead with geo. That is the separation §6
+          asked for, held by `searchParams.js` rather than by running two libraries.
+
+          Measured cost of *not* separating them: sharing one set takes the suite from
+          42/50 to 38/50. `Ocean Prime - Denver` (2 km) beats 117067 `Prime` on `prime`,
+          `Barley & Rye` beats `Rye` on `rye`, `Workshop at UNION` beats `Union`.
         */}
-        <SearchBox placeholder="Search restaurants, cuisines, neighborhoods" autoFocus />
+        <Autocomplete
+          placeholder="Search restaurants, cuisines, neighborhoods"
+          indices={[
+            {
+              indexName,
+              searchParameters: knownItemParams,
+              itemComponent: SuggestionComponent,
+            },
+          ]}
+          showRecent
+          detachedMediaQuery="(max-width: 680px)"
+        />
         <GeoBanner status={status} label={geo?.label ?? DEFAULT_METRO.label} />
       </header>
 
