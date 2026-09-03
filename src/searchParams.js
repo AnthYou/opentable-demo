@@ -95,6 +95,78 @@ export const DEMO_LOCATIONS = [
  * default could. It stays as the densest market, for a caller that wants a position
  * without asking.
  */
+/**
+ * Neighbourhood positions.
+ *
+ * A second zoom level on the markets above. Markets move you between cities; these move
+ * you inside one, which is the only way to watch the `geo` criterion reorder a result set
+ * that is already entirely local.
+ *
+ * Three constraints, and the third is the one that is easy to get wrong:
+ *
+ * - **A real neighbourhood, never the city fallback.** `neighborhood` equals `city` on
+ *   2,500 records (§3), so half the corpus has no neighbourhood at all. Those pairs are
+ *   excluded: "Columbus, Columbus" is not a neighbourhood, it is a missing value.
+ * - **Enough records for the centroid to mean something.** Every entry below is backed by
+ *   at least 10, so the anchor is a district rather than one restaurant standing for one.
+ * - **Separated by more than the bucket.** `aroundPrecision` is 5 km on a category query,
+ *   and two positions closer than that fall into the *same* bucket, where `geo` declares
+ *   them tied and the later criteria return an identical order. Measured the wrong way
+ *   round first: Houston Downtown and Midtown / Montrose sit 2.3 km apart and shared 7 of
+ *   their top 10 with the same first hit, so Midtown / Montrose was dropped. Every
+ *   intra-city pair kept below exceeds 5 km — Houston's minimum is 9.5 km, San Antonio's
+ *   6.8, New York's 5.7.
+ *
+ * What that buys, measured on a category query:
+ *
+ * - **San Antonio is the clearest.** On `mexican` all three anchors return a *different*
+ *   first hit, each one in the selected neighbourhood — La Fonda on Main downtown, Paloma
+ *   Blanca in Alamo Heights, Pericos in North San Antonio — while 9 of the top 10 are the
+ *   same restaurants throughout. Same results, different order, which is precisely what a
+ *   ranking criterion does and what a filter does not.
+ * - **Houston is the most dramatic.** On `italian`, Downtown and West Side share **0 of
+ *   their top 10**: far enough apart that the pages have nothing in common.
+ * - **New York is the weakest of the three** and worth knowing before demoing it: two
+ *   distinct first hits out of three anchors, because Manhattan is small relative to a
+ *   5 km bucket.
+ *
+ * `records` is the sample size behind each centroid, and like `within25km` above it is
+ * deliberately not shown in the UI, for the same reason — a number beside a place in a
+ * search interface reads as a result count.
+ *
+ * **The dial still applies.** These change the ranking only on a query that classifies as
+ * a category: the empty query, a facet refinement, or a bare category word. A typed
+ * restaurant name gets the coarse bucket and geo goes inert by design — see
+ * `looksLikeCategory` and §5. Picking a neighbourhood and typing a name looks like nothing
+ * happened, because nothing should.
+ *
+ * Derived from `data/records.json`; re-derive if the transform changes.
+ */
+export const DEMO_NEIGHBOURHOODS = [
+  { label: 'New York — Midtown West', city: 'New York', neighborhood: 'Midtown West', lat: 40.75879, lng: -73.98397, records: 80 },
+  { label: 'New York — Harlem', city: 'New York', neighborhood: 'Harlem', lat: 40.80398, lng: -73.95101, records: 13 },
+  { label: 'New York — Financial District', city: 'New York', neighborhood: 'Financial District', lat: 40.70633, lng: -74.00846, records: 14 },
+  { label: 'Houston — Downtown', city: 'Houston', neighborhood: 'Downtown', lat: 29.75775, lng: -95.36978, records: 31 },
+  { label: 'Houston — Galleria / Uptown', city: 'Houston', neighborhood: 'Galleria / Uptown', lat: 29.74477, lng: -95.4673, records: 44 },
+  { label: 'Houston — West Side', city: 'Houston', neighborhood: 'West Side', lat: 29.77495, lng: -95.56667, records: 26 },
+  { label: 'San Antonio — Downtown', city: 'San Antonio', neighborhood: 'Downtown', lat: 29.42934, lng: -98.48837, records: 34 },
+  { label: 'San Antonio — Alamo Heights', city: 'San Antonio', neighborhood: 'Alamo Heights', lat: 29.4887, lng: -98.47029, records: 10 },
+  { label: 'San Antonio — North San Antonio', city: 'San Antonio', neighborhood: 'North San Antonio', lat: 29.58191, lng: -98.52614, records: 14 },
+];
+
+/**
+ * Resolves a selector label to a position. One lookup rather than two searches in the
+ * caller, so adding a third group later cannot leave `App.jsx` silently missing it.
+ */
+export function findDemoPosition(label) {
+  if (!label) return null;
+  return (
+    DEMO_LOCATIONS.find((l) => l.label === label) ??
+    DEMO_NEIGHBOURHOODS.find((l) => l.label === label) ??
+    null
+  );
+}
+
 export const DEFAULT_METRO = DEMO_LOCATIONS[0];
 
 /**

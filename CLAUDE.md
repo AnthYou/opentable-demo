@@ -478,6 +478,19 @@ in its market, nearest restaurant 116 km away in South Bend — and Boston (123 
 Atlanta (167 km) and Seattle (220 km) are the same. A demo driven only by the browser
 looks broken from any of those while behaving perfectly.
 
+**The selector carries a second group, nine neighbourhoods across three cities.** A market
+moves the position between cities, which cannot show the `geo` criterion reordering a result
+set that is already entirely local — every restaurant in it sits in the same market. Only a
+position *inside* a city can. Selected on the same criterion as the markets, corpus density,
+plus two the market list does not need: a real neighbourhood rather than the `city` fallback
+that covers 2,500 records, and a separation wider than the 5 km `aroundPrecision` bucket.
+That last one is the trap. Two anchors closer than the bucket are declared tied by `geo` and
+return an identical order — measured, Houston Downtown and Midtown / Montrose sit 2.3 km
+apart and shared 7 of their top 10 with the same first hit, so one of them was dropped.
+Every intra-city pair kept exceeds 5 km. `DEMO_NEIGHBOURHOODS` records which city
+demonstrates it best and how far each goes; it only applies to a query that classifies as a
+category, since a name query gets the coarse bucket and geo goes inert by design.
+
 The record counts that justify curating the list are deliberately not shown: a number
 beside a city in a search interface reads as a result count, and it is not one. And when
 "use my location" is chosen but the browser has not shared a position, the banner says so

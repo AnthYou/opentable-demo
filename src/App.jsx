@@ -13,7 +13,14 @@ import {
 } from 'react-instantsearch';
 
 import { searchClient, indexName, sortOptions } from './searchClient.js';
-import { paramsForQuery, looksLikeCategory, geoParams, DEMO_LOCATIONS } from './searchParams.js';
+import {
+  paramsForQuery,
+  looksLikeCategory,
+  geoParams,
+  DEMO_LOCATIONS,
+  DEMO_NEIGHBOURHOODS,
+  findDemoPosition,
+} from './searchParams.js';
 import { Hit } from './components/Hit.jsx';
 import { titleCase } from './lib/format.js';
 import { insightsProps } from './insights.js';
@@ -67,6 +74,11 @@ function useGeoPosition() {
  * are the ten best-covered markets. Their record counts are deliberately not shown:
  * `DEMO_LOCATIONS` carries `within25km` because it is what justifies curating the list,
  * but a number beside a city in a search UI reads as a result count, and it is not one.
+ *
+ * The second group is the same idea one zoom level down. Markets move you between cities;
+ * neighbourhoods move you inside one, which is the only way to watch proximity reorder a
+ * result set that is already entirely local. Selected on corpus density like the markets —
+ * see `DEMO_NEIGHBOURHOODS` for the two extra constraints that list carries.
  */
 function LocationPicker({ value, onChange }) {
   return (
@@ -74,11 +86,20 @@ function LocationPicker({ value, onChange }) {
       <label htmlFor="location">Near</label>
       <select id="location" value={value} onChange={(event) => onChange(event.target.value)}>
         <option value="">Use my location</option>
-        {DEMO_LOCATIONS.map((location) => (
-          <option key={location.label} value={location.label}>
-            {location.label}
-          </option>
-        ))}
+        <optgroup label="Cities">
+          {DEMO_LOCATIONS.map((location) => (
+            <option key={location.label} value={location.label}>
+              {location.label}
+            </option>
+          ))}
+        </optgroup>
+        <optgroup label="Neighbourhoods">
+          {DEMO_NEIGHBOURHOODS.map((location) => (
+            <option key={location.label} value={location.label}>
+              {location.label}
+            </option>
+          ))}
+        </optgroup>
       </select>
     </div>
   );
@@ -241,7 +262,7 @@ export default function App() {
   // Mobile only: the filters live in a sheet the user opens. Desktop ignores this — the
   // sidebar is always visible there, and the state simply never changes.
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const selected = DEMO_LOCATIONS.find((location) => location.label === selectedLabel) ?? null;
+  const selected = findDemoPosition(selectedLabel);
   const position = selected ?? browserPosition;
 
   /**

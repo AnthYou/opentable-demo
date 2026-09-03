@@ -264,6 +264,15 @@ are the same. A demo driven only by the browser's position looks broken from any
 while behaving perfectly, which is why there is a location selector offering the ten
 best-covered markets.
 
+It carries a second group of nine neighbourhoods across three cities, because a market only
+moves the position between cities and that cannot show the `geo` criterion reordering a set
+of results which are all local already. They are separated by more than the 5 km
+`aroundPrecision` bucket, which is the constraint that matters: two anchors closer than the
+bucket are tied by `geo` and return the same order. San Antonio shows it most clearly — on
+`mexican` each of the three returns a different first hit, always one in the selected
+neighbourhood, while 9 of the top 10 stay the same restaurants. Same results, different
+order, which is what a ranking criterion does and a filter does not.
+
 ---
 
 ## Next steps
