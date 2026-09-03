@@ -405,14 +405,27 @@ parameters rather than a global choice.
 
 Resolution, per journey:
 
-- **Typed query (known-item)** — text relevance leads. No geo parameter is sent at
-  all. Distance is computed client-side from `_geoloc` for *display*, which is what
-  separates chain locations.
-- **Empty query (discovery / browse)** — geo leads. `aroundLatLng` from the browser,
-  `aroundLatLngViaIP` as fallback, `aroundRadius: "all"`, and `aroundPrecision`
-  buckets coarse enough that `popularity_score` breaks ties inside a bucket.
-  Without precision buckets, a marginally closer mediocre restaurant outranks an
-  excellent one two streets further.
+**Geo is always sent, and never withdrawn.** `aroundLatLng` (browser, then
+`aroundLatLngViaIP`, then the default metro) with `aroundRadius: "all"`, on every
+request. A result is never lost to distance: 5,000 restaurants across 916 cities is a
+sparse national sample, and a bounded radius returns nothing for most positions —
+`italian` from Denver gives 31 records inside 50 km against 895 unbounded.
+
+**What varies is `aroundPrecision`, and it varies on what the query means.** The axis is
+name versus category, and both are text — an earlier version gated geo on whether the
+query was empty, which denied proximity to `italian` from Chicago, a discovery query.
+
+- **Category query, or none yet** — fine bucket, 5 km. Proximity genuinely orders the
+  results, and 5 km is coarse enough that `popularity_score` breaks ties inside a
+  bucket: without that, a marginally closer mediocre restaurant outranks an excellent
+  one two streets further.
+- **Name-like query** — coarse bucket, 20,000 km. The whole corpus falls in one bucket
+  and geo decides nothing. Measured: at 10,000 km the ranking is already byte-identical
+  to sending no geo, so `Ocean Prime - Denver` (2 km) stops displacing 117067 `Prime`
+  (1,062 km).
+
+Distance display is independent of all of this — it is computed client-side from
+`_geoloc`, which is why that attribute is retrieved. The dial changes ranking only.
 
 Never leave the user geo-blocked. If geolocation is denied: fall back to IP, then
 to a default metro area, and tell the user in the UI which location is in use so
@@ -453,26 +466,37 @@ and the same keystroke serves both:
 A second dropdown surface was tried and removed. It showed the same records the page
 already showed, one keystroke earlier, which is noise rather than help.
 
-**One surface means one parameter set, and geo becomes the only thing that varies.**
-That is not a simplification of convenience — it is forced, and the rule is measured:
+**One surface, two parameter sets, differing in exactly one key.** `src/searchParams.js`
+declares them side by side with the reasoning inline, and a boot-time assertion fails if
+they ever diverge in anything other than `aroundPrecision` — anything else diverging
+means the two journeys have quietly become two feature sets.
 
-> **Geo parameters apply only while the query is empty.**
+Which set applies is decided by a heuristic, and it is **documented as a prototype
+limitation, not a reliable classifier**: is the whole query, lowercased, exactly a value
+of one of the four taxonomy facets — `cuisine`, `cuisine_tags`, `dining_style`,
+`occasions`? Places are excluded on purpose. `city`, `neighborhood` and `market` hold
+1,269 values and eight are also restaurant names — `rye`, `union`, `babylon`,
+`santa fe`, `acme`, `lafayette`, `meridian`, `riverside` — so including them would
+misclassify precisely the known-item queries the split exists to protect. Excluding them
+also stands on its own: a place query is already constrained geographically by its own
+text match, so proximity has nothing left to reorder inside that set.
 
-With nothing typed, proximity is the only ranking signal the user has given us, and
-discovery should lead with it. Once they type, their words outrank their location.
-`geo` sits second in `ranking`, ahead of `words`, `attribute` and `exact`, so a geo
-parameter on a typed query lets a nearer *partial* match displace an exact name:
-`Ocean Prime - Denver` (2 km) beats 117067 `Prime` (1,062 km) on `prime`,
-`Barley & Rye` beats `Rye`, `Workshop at UNION` beats `Union`. Sending geo on every
-query takes the test suite from 42/50 to 38/50.
+Two measured failure modes, recorded rather than hidden:
 
-The known cost of the rule is the reverse case: `italian` from Denver returns Memphis
-and Orlando rather than Denver, because it is a typed query. See `test-queries.md` G3.
-Making proximity an explicit user control would recover it; that is an open question,
-not a decision.
+- **One residual collision.** `bistro` is a `cuisine_tags` value *and* the name of
+  100624, so it classifies as a category and 100624 loses its place. `small plates`
+  collides the same way. Ten facet values collide with restaurant names in total; these
+  two are the ones the taxonomy contributes.
+- **Exact match only.** `italian restaurant`, `cheap italian` and `sushi near me` match
+  nothing and are treated as names, so a naturally phrased discovery query gets no
+  proximity. Closing that needs real query categorisation — section 9, out of scope.
 
-The rule lives in `src/searchParams.js` with the reasoning inline, and a boot-time
-assertion keeps geo out of the base set.
+And one conflict the dial cannot resolve: **chain disambiguation and exact-name
+protection pull it in opposite directions.** `test-queries.md` C5 wants proximity to
+separate two Pappas Bros locations 360 km apart; A2 wants it not to let a restaurant
+2 km away displace an exact name 1,062 km away. No single value does both — measured,
+the windows do not overlap, and at 500 km both fail. C5 is accepted, mitigated by
+`location_label` still telling the two apart.
 
 ```
 CLAUDE.md

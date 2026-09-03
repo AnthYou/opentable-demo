@@ -14,7 +14,7 @@ import {
 } from 'react-instantsearch';
 
 import { searchClient, indexName, sortOptions } from './searchClient.js';
-import { searchParams, browseGeoParams, DEFAULT_METRO } from './searchParams.js';
+import { paramsForQuery, looksLikeCategory, geoParams, DEFAULT_METRO } from './searchParams.js';
 import { Hit } from './components/Hit.jsx';
 import './App.css';
 
@@ -61,25 +61,27 @@ function useGeoPosition() {
  * the user needs to know from where. Once they type, location stops ranking and saying
  * otherwise would be a lie — so the banner says which signal is in charge.
  */
-function GeoBanner({ status, label, browsing }) {
-  if (!browsing) {
+function GeoBanner({ status, label, byCategory }) {
+  const where = {
+    pending: 'your location',
+    granted: label,
+    denied: `${label} (from your network)`,
+    unavailable: DEFAULT_METRO.label,
+  }[status];
+
+  if (status === 'pending') {
     return (
       <p className="geo-banner" role="status">
-        Ranked by how well each restaurant matches what you typed. Distance is shown, not ranked.
+        Finding your location…
       </p>
     );
   }
 
-  const explanation = {
-    pending: 'Finding your location…',
-    granted: `Showing restaurants near ${label}, best rated first.`,
-    denied: `Location access declined, so these are near ${label} from your network.`,
-    unavailable: `Your browser cannot share a location, so these are near ${DEFAULT_METRO.label}.`,
-  }[status];
-
   return (
     <p className="geo-banner" role="status">
-      {explanation}
+      {byCategory
+        ? `Nearest to ${where} first, best rated within each area.`
+        : `Ranked by how well the name matches. Distance from ${where} is shown, not ranked.`}
     </p>
   );
 }
@@ -96,20 +98,21 @@ const OCCASION_ENTRY_POINTS = ['date night', 'business lunch', 'family friendly'
 const CUISINE_ENTRY_POINTS = ['Steakhouse', 'Italian', 'Japanese', 'Seafood', 'Mexican', 'French'];
 
 /**
- * The rule from `searchParams.js`, applied. Geo parameters reach the request only while
- * the query is empty; a typed query is ranked by text, because `geo` sits second in
- * `ranking` and would otherwise let a nearer partial match displace an exact name.
+ * Applies the dial from `searchParams.js`. Geo coordinates are always sent; only
+ * `aroundPrecision` changes, and it changes on what the query looks like — a category
+ * gets a fine bucket so proximity orders the results, a name gets a bucket so coarse
+ * that geo decides nothing.
  */
 function SearchConfiguration({ geo }) {
   const { indexUiState } = useInstantSearch();
-  const browsing = !indexUiState.query;
-  return <Configure {...searchParams} {...(browsing && geo ? geo.params : {})} />;
+  const query = indexUiState.query ?? '';
+  return <Configure {...paramsForQuery(query)} {...(geo?.params ?? {})} />;
 }
 
-/** Reads the browse state from context so the banner stays a pure component. */
+/** Reads the query from context so the banner stays a pure component. */
 function HeaderBanner(props) {
   const { indexUiState } = useInstantSearch();
-  return <GeoBanner {...props} browsing={!indexUiState.query} />;
+  return <GeoBanner {...props} byCategory={looksLikeCategory(indexUiState.query ?? '')} />;
 }
 
 function CuratedEntryPoints() {
@@ -155,9 +158,11 @@ export default function App() {
   // `discoveryGeoParams` decides the rung; App only decides whether the IP rung is still
   // worth trying. `pending` sends no geo parameter at all rather than guessing, so the
   // first paint is not silently ordered by the wrong location.
+  // Geo coordinates are sent as soon as a position is resolvable, and never withdrawn.
+  // `pending` sends none only because there is nothing yet to send.
   const geo = useMemo(() => {
     if (status === 'pending') return null;
-    return browseGeoParams(position, { ipFallback: status !== 'unavailable' });
+    return geoParams(position, { ipFallback: status !== 'unavailable' });
   }, [position, status]);
 
   // `<Hits hitComponent>` passes only `{ hit }`, so the user's position — which the
