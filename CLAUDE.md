@@ -443,8 +443,13 @@ ten best-covered markets alongside "use my location", because the corpus has gap
 nobody would look for them: **Chicago holds zero records** — nothing in the city, nothing
 in its market, nearest restaurant 116 km away in South Bend — and Boston (123 km),
 Atlanta (167 km) and Seattle (220 km) are the same. A demo driven only by the browser
-looks broken from any of those while behaving perfectly. Each option shows its record
-count within 25 km so whoever runs the demo knows what to expect.
+looks broken from any of those while behaving perfectly.
+
+The record counts that justify curating the list are deliberately not shown: a number
+beside a city in a search interface reads as a result count, and it is not one. And when
+"use my location" is chosen but the browser has not shared a position, the banner says so
+in full — "your approximate location" alone names the rung without explaining why it is
+approximate.
 
 Making it a choice serves "tell the user which location is in use" better than a default
 ever could, and it means the fallback chain no longer has an unreachable rung.

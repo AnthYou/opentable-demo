@@ -68,6 +68,10 @@ const PRECISION_NEUTRAL_THRESHOLD_METRES = 10000000;
  * — the corpus's own navigation facet — with the centroid of its densest city as the
  * pivot, and the count of records within 25 km of that pivot. Ordered by coverage.
  *
+ * `within25km` is what justifies curating this list rather than generating it from all
+ * 51 markets, and it is deliberately **not shown in the UI**: a number beside a city in
+ * a search interface reads as a result count, which it is not.
+ *
  * Derived from `data/records.json`; re-derive if the transform changes. 21 of the 51
  * markets hold fewer than 20 records within 25 km of their pivot, which is why this list
  * is curated rather than generated from all of them.

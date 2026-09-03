@@ -61,17 +61,26 @@ function useGeoPosition() {
  * the user needs to know from where. Once they type, location stops ranking and saying
  * otherwise would be a lie — so the banner says which signal is in charge.
  */
-function GeoBanner({ status, label, byCategory, waiting }) {
-  // The label comes from `geoParams`, which knows which rung of the fallback chain is
-  // actually in use — the status only adds that a more precise position may still arrive,
-  // and only while no city has been picked.
-  const pending = waiting && status === 'pending' ? ' Still asking your browser for a precise position.' : '';
+function GeoBanner({ status, source, label, byCategory, waiting }) {
+  // `geoParams` reports which rung of the fallback chain is actually in use, and the
+  // banner has to say so — §5: "tell the user which location is in use so the results
+  // are never unexplained". The IP rung gets a full sentence rather than a label,
+  // because "your approximate location" alone does not explain *why* it is approximate.
+  const ranking = byCategory
+    ? `Nearest to ${label} first, best rated within each area.`
+    : `Ranked by how well the name matches. Distance from ${label} is shown, not ranked.`;
+
+  const explanation =
+    source === 'ip'
+      ? ` Your browser has not shared a location, so this is an approximate position from your network.${
+          waiting && status === 'pending' ? ' Still asking — results will sharpen if you allow it.' : ''
+        }`
+      : '';
 
   return (
     <p className="geo-banner" role="status">
-      {byCategory
-        ? `Nearest to ${label} first, best rated within each area.${pending}`
-        : `Ranked by how well the name matches. Distance from ${label} is shown, not ranked.${pending}`}
+      {ranking}
+      {explanation}
     </p>
   );
 }
@@ -96,18 +105,22 @@ const CUISINE_ENTRY_POINTS = ['Steakhouse', 'Italian', 'Japanese', 'Seafood', 'M
  * while behaving perfectly, so the position has to be selectable.
  *
  * "Use my location" is the default and keeps the previous behaviour: browser position if
- * granted, IP otherwise. The cities are the ten best-covered markets, each showing how
- * many records sit within 25 km so whoever runs the demo can see what to expect.
+ * granted, an approximate position from the network otherwise. The cities are the ten
+ * best-covered markets.
+ *
+ * Their record counts are deliberately *not* shown. `DEMO_LOCATIONS` carries
+ * `within25km` because it is what justifies curating the list, but a number next to a
+ * city in a search UI reads as a result count, and it is not one.
  */
-function LocationPicker({ value, onChange, resolvedLabel }) {
+function LocationPicker({ value, onChange }) {
   return (
     <div className="location-picker">
       <label htmlFor="location">Searching near</label>
       <select id="location" value={value} onChange={(event) => onChange(event.target.value)}>
-        <option value="">{value === '' ? `Use my location — ${resolvedLabel}` : 'Use my location'}</option>
+        <option value="">Use my location</option>
         {DEMO_LOCATIONS.map((location) => (
           <option key={location.label} value={location.label}>
-            {`${location.label} — ${location.within25km} nearby`}
+            {location.label}
           </option>
         ))}
       </select>
@@ -216,8 +229,8 @@ export default function App() {
       <header className="app-header">
         <h1>OpenTable — search &amp; discovery prototype</h1>
         <SearchBox placeholder="Search restaurants, cuisines, neighborhoods" autoFocus />
-        <LocationPicker value={selectedLabel} onChange={setSelectedLabel} resolvedLabel={geo.label} />
-        <HeaderBanner status={status} label={geo.label} waiting={selected === null} />
+        <LocationPicker value={selectedLabel} onChange={setSelectedLabel} />
+        <HeaderBanner status={status} source={geo.source} label={geo.label} waiting={selected === null} />
       </header>
 
       <CuratedEntryPoints />
