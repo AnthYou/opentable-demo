@@ -431,6 +431,18 @@ Never leave the user geo-blocked. If geolocation is denied: fall back to IP, the
 to a default metro area, and tell the user in the UI which location is in use so
 the results are never unexplained.
 
+**Including while the permission prompt is open.** The dialog has no timeout the app
+controls, so an implementation that waits for an answer sends the first request — and
+everything typed until the user responds — with no geo at all. `aroundLatLngViaIP` needs
+no permission and is resolved server-side, so it carries proximity from the very first
+request and is upgraded to precise coordinates if and when the browser answers. The same
+path covers a denial and a browser with no geolocation API.
+
+The third rung is a stated limitation rather than an automatic one: Algolia resolves the
+IP server-side, and a failed lookup looks from the client like results that are simply
+not geo-ordered. The default metro is therefore reachable only through an explicit call,
+which nothing currently makes — a city selector would be the thing that uses it.
+
 ## 6. Stack and repo layout
 
 Front end: **Vite + React InstantSearch, and nothing else.** One search box, one
