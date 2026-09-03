@@ -103,6 +103,16 @@ American/Contemporary — matches on `name` alone.
 | O3 | `shake shack` | 1 hit | **`address` is searchable.** 25840 `SASA` matched on `13120 Shaker Square` |
 | O4 | `sushi in tokyo` | 1 hit | `lastWords` drops `tokyo`, and `removeStopWords: false` makes `in` a matchable token, reaching 41962 `In the Raw` |
 
+**Corrected 2026-09-03 — there are two channels, not three, and one row above is wrong.**
+Re-measured with `removeWordsIfNoResults: 'none'`, `olive garden`, `sushi in tokyo` and
+`momofuku` all return **0 hits**. `lastWords` is therefore the sole cause of O2 and O4,
+and the `removeStopWords` explanation for O4 was wrong: `in` was never the cause, because
+the full query never matched anything to begin with. Only O3 had a second channel — with
+word removal off, `shake shack` still returned 25840 `SASA` through `address`. `address`
+was removed on 2026-09-03 for unrelated reasons, which moved O3 from 1 hit to 10 as its
+leak reverted to `lastWords`. **`removeWordsIfNoResults` is the one lever that closes all
+three**, and it is the next candidate.
+
 O3 corrects a claim made when the case was written. It said `shake` matches nothing, so
 the fallback was harmless. That was verified against `name` only — but `address` sits at
 the fifth level of `searchableAttributes`, and `shake` reaches 14 records through it,
@@ -421,7 +431,7 @@ Verified absent across `name`, `address`, `city`, `state`, `area`, `neighborhood
 |---|---|---|---|---|
 | O1 | `momofuku` | AC+IS | 0 results, with an empty state that says so and offers a route back to browsing. Silent junk is worse than zero. | **pass** |
 | O2 | `olive garden` | AC+IS | **⚠ predicted fail, confirmed 2026-09-03 (6 hits).** Truly absent, but under `removeWordsIfNoResults: lastWords` dropping `garden` leaves `olive`, which matches 6 records (100042 `Olive Press`, 56608 `Olivette`, 111679 `Olive Lucy's Kitchen Table`, 5292 `Bleu Olive`, …). The user asked for a chain and gets unrelated restaurants presented as answers. This is the motivating case for evaluating `allOptional` versus `lastWords` per section 5. | **fail** — 6 hits, not 0 — 110344 `Olive B's Big Sky`, 5292 `Bleu Olive`, 111679 `Olive Lucy's Kitchen Table`. Root cause in the baseline run above. |
-| O3 | `shake shack` | AC+IS | 0 results. Also absent, but the fallback is harmless here: `shake` matches 0 names, so stripping the last word still yields nothing. Contrast with O2 — the same setting is safe on one query and harmful on the other, which is why the choice needs a case, not a preference. | **fail** — 1 hit, not 0 — 25840 `SASA`, matched on its address `13120 Shaker Square`. Root cause in the baseline run above. |
+| O3 | `shake shack` | AC+IS | 0 results. Also absent, but the fallback is harmless here: `shake` matches 0 names, so stripping the last word still yields nothing. Contrast with O2 — the same setting is safe on one query and harmful on the other, which is why the choice needs a case, not a preference. | **fail** — 10 hits after `address` was removed on 2026-09-03 (previously 1 hit, through `address`). With `removeWordsIfNoResults: 'none'` it returns 0, so the remaining leak is word removal, exactly as for O2 and O4. |
 | O4 | `sushi in tokyo` | IS | Must not silently return every sushi restaurant in the US. `tokyo` is absent from the corpus entirely; the response must make clear the location constraint could not be honoured. | **fail** — 1 hit, not 0 — 41962 `In the Raw - Bricktown`, matched on the token `in`. Root cause in the baseline run above. |
 
 ## 10. Geo — the known-item / proximity conflict
@@ -451,6 +461,10 @@ unattributable. A change with no motivating case does not belong here.
 | 2026-09-03 | `searchableAttributes` — removed `chain_name` | 5 levels → 4 | **A2** `prime` | A2 fail → pass. 90916 had been scoring `exact=1` through `chain_name: "Prime"`, a whole-attribute match at level 2 that cancelled 117067's real name match. Provably lossless: all 722 chained records have a name beginning with their `chain_name`, 0 exceptions. | **none.** All 49 other cases byte-identical. |
 | 2026-09-03 | `exactOnSingleWordQuery` — **evaluated, not applied** | `attribute` → `word` | **G2** `nobu` | Would fix G2: all four Nobu score `exact=1`, Nobuo scores 0. | **Breaks A2, A7 and A8** — `prime` returns Bohanan's, `bistro` returns Costa Brava, `babylon` returns Babylon Turkish. Net −2, so `attribute` is kept. The two modes are in direct opposition: `attribute` rewards "the query is the whole name", `word` rewards "the query is a whole word in the name". |
 | 2026-09-03 | `exactOnSingleWordQuery` — now declared | *(implicit default)* → `"attribute"` | the measurement above | Nothing behaviourally: the value equals the effective default. Declared so the measured choice is visible in a diff instead of inherited silently, the same reason `ranking` is declared. | **none.** Spot-checked on the eight single-word queries the setting can affect — `prime`, `bistro`, `babylon`, `nobu`, `rye`, `naya`, `steakhouse`, `thai` — all rank 1 unchanged. |
+| 2026-09-03 | `indexLanguages` + `queryLanguages` | *(unset)* → `["en"]` | prerequisite for the two rows below | Nothing behaviourally — 0 of 50 cases changed, not even a hit count. Declared because `ignorePlurals` and `removeStopWords` are dictionary-driven and with no language set resolve against every supported language. | **none.** |
+| 2026-09-03 | `ignorePlurals` — **evaluated, not applied** | `false` → `true` | cuisine plurals such as `steakhouses` | **Nothing.** `steakhouses` 513 hits either way, `bistros` 210, `tapas` 55, `pizzas` 36, `noodles` 3 — all identical. Typo tolerance already absorbs a trailing plural on any word of 4+ characters. | **Two known-item regressions.** `maya` drops 23845 `Maya` from rank 1 to 2 behind 77980 `Mayas`; `vita` drops 10015 `Vita` from rank 1 to 2 behind 77257 `Vitae`. Zero gain against two regressions, so `false` is kept. Cata/Catas, Azur/Azure and Savor/Savore are unaffected — the earlier rationale named the wrong pairs. |
+| 2026-09-03 | `removeStopWords` — **evaluated, not applied** | `false` → `true` | O4 `sushi in tokyo` | **Nothing.** O4 returns 0 with word removal disabled, so the token `in` was never its cause. | **Regresses the sharpest case in the corpus.** `the smith` goes from 4 hits to 16 and 19258 `The Smith - East Village` falls out of the top 3, displaced by `Smithfields` and `Butera's Restaurant of Smithtown`. Adds tail noise on `in the raw` and `the capital grille`. `false` is kept. |
+| 2026-09-03 | `searchableAttributes` — removed `address` | 4 levels → 3 | no stated pain requires street search (§1), plus measured noise | **Precision, on 9 of 50 cases.** `Cafe 21` 7 hits → exactly the 2 real records; `kaya` 67 → 40, shedding 27 Waikiki restaurants on Kalakaua Avenue; `thai` 76 → 45, shedding 31 on Third Street; `union` 57 → 42; `tien` 47 → 38; `naya` 31 → 28. | **0 status changes**, 42/50 either way. O3 went from 1 hit to 10 — its leak reverted from `address` to `lastWords`. Street search is gone: 110 records were reachable only via `address` on `Main Street`, 92 on `Broadway`, 139 on `park`. |
 
 The initial configuration in `scripts/settings.json` was pushed unchanged, so this row
 records a baseline rather than a change. Every row after it must name one setting, the
@@ -486,9 +500,13 @@ Recorded now so they are not quietly forgotten once results start coming in.
 3. **`address` in `searchableAttributes`.** It is the sole cause of O3 and it is listed
    in CLAUDE.md §5. Removing it closes the leak and removes street search, which no
    stated pain requires but which is a plausible expectation.
-4. **`lastWords` or `allOptional`?** Reframed by the baseline: O2 and O4 both leak
-   through word removal, O3 does not. `allOptional` must be measured against all 16
-   passing cases before adoption, not just the three failures.
+4. **`lastWords`, `allOptional` or `none`?** Now the highest-value open question, and
+   the evidence has sharpened: with `removeWordsIfNoResults: 'none'` **all four
+   out-of-corpus queries return 0**, so this one setting closes O2, O3 and O4 together.
+   The cost is unmeasured and is the whole question — `none` means a query carrying one
+   unmatched word returns nothing at all, which is exactly the forgiveness persona 1
+   needs. `allOptional` sits between the two. Must be measured against all 42 passing
+   cases before adoption, not just the three failures.
 5. **D6 (`sushi`)** — not yet run. Confirm the split resolution holds: name-first in the
    dropdown, cuisine refinement on the page. If persona 2 users still cannot reach the
    67 `Sushi` records, the answer is a UI change, not a ranking change.

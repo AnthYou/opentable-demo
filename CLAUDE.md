@@ -268,9 +268,9 @@ gets reviewed in diffs, and a dashboard-only change is a change nobody can trace
 searchableAttributes: [
   "unordered(name)",          # persona 1: name outranks everything else
   "unordered(cuisine,cuisine_tags)",
-  "unordered(neighborhood,city,market)",
-  "address"
-]                             # chain_name removed — see below
+  "unordered(neighborhood,city,market)"
+]                             # chain_name and address both removed — see below
+indexLanguages / queryLanguages: ["en"]
 attributesForFaceting: [
   "searchable(cuisine)", "cuisine_tags", "dining_style",
   "price_range", "price_tier", "occasions", "city", "market", "neighborhood",
@@ -306,6 +306,24 @@ two are in direct opposition and no setting provides both. Measured on this corp
 `word` fixes `nobu` (`Nobuo` stops outranking three real Nobu locations) and breaks
 `prime`, `bistro` and `babylon`. Net −2, so `attribute` stays. See `test-queries.md`,
 the `exact` tie investigation.
+
+**`address` is not searchable either, and this one overrides section 5 as written.**
+Section 1 puts features with no stated pain out of scope however cheap they are, and no
+reported pain asks for street search. It also cost precision on the journeys that *are*
+in scope: matching typo-plus-prefix against street names, `kaya` returned 27 Waikiki
+restaurants on Kalakaua Avenue among its 67 hits, `thai` returned 31 restaurants on
+Third Street or Third Avenue among 76, and `Cafe 21` returned 5 spurious hits on top of
+the 2 real ones. Removed 2026-09-03: no case status changed, and those tails collapsed —
+kaya to 40, thai to 45, `Cafe 21` to exactly the two Café 21 records. It is still
+returned for display; it is simply not searched.
+
+**Languages are pinned, because two other settings depend on them.** `indexLanguages`
+and `queryLanguages` are both `["en"]`. `ignorePlurals` and `removeStopWords` are
+dictionary-driven, and with no language declared they resolve against every supported
+language — a far wider plural and stop-word set than a corpus where `country` is
+constant `US`. The declaration itself changes nothing (measured across 11
+representative queries); it exists so the two settings below rest on a stated basis
+rather than an implicit one.
 
 **`chain_name` is not searchable, and that is deliberate.** It was listed here
 originally. It is provably redundant — all 722 chained records have a name beginning
