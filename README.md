@@ -224,7 +224,7 @@ one was mine and invisible:
 
 ## Trade-offs and what is still wrong
 
-**52 relevance cases: 40 pass, 6 accepted, 4 fail, 2 blocked.** Written before the index
+**52 relevance cases: 43 pass, 6 accepted, 3 fail.** Written before the index
 existed, from real records. `accepted` means the expectation is not met and the behaviour
 is judged acceptable, with the reason recorded.
 
@@ -271,13 +271,12 @@ best-covered markets.
 In rough order of value:
 
 1. **Deploy.** §7 asks for it from the first commit and it has not happened.
-2. **Resolve `removeWordsIfNoResults`** against all 42 passing cases, not just the three
-   failures it fixes.
-3. **Append distance in the hit card where `location_label_ambiguous` is set**, which
-   closes K18 and is the only hard requirement the UI inherits from the data model.
-4. **Run the remaining relevance work as measured single changes.** The loop exists and
+2. **Resolve `removeWordsIfNoResults`** against all 43 passing cases, not just the three
+   failures it fixes. This is now the only open relevance question: O2, O3 and O4 are the
+   three remaining failures and they share this one root cause.
+3. **Run the remaining relevance work as measured single changes.** The loop exists and
    has caught three bad ideas already; the discipline is worth more than any single fix.
-5. **Synonyms** for the abbreviation tail — 66 records carry a period abbreviation. Lower
+4. **Synonyms** for the abbreviation tail — 66 records carry a period abbreviation. Lower
    priority than it looked: `pappas brothers` already passes without one.
 
 Beyond the prototype, and the reason the event stream is instrumented from the start:

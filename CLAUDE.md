@@ -108,7 +108,17 @@ chain: neighborhood (when distinct from city) → city → city + distance.
 The third rung needs the user's position, so the transform computes the first two and
 sets `location_label_ambiguous` on the 18 records where they are insufficient — the 9
 same-city clusters whose siblings share a neighborhood. The front end must append
-distance whenever that flag is true, or those rows render identically.
+distance whenever that flag is true.
+
+**Corrected 2026-09-03 — the reason given for that obligation was wrong.** It read "or
+those rows render identically". They do not: on all 18 flagged records the `name` differs,
+because every one of them carries a distinguishing suffix — `- Midtown` beside
+`- Rice Village`, `- DC Ranch` beside `- Old Town`, `- 18 Oaks` beside `- Cibolo Moon`.
+The name is the most prominent element of the card, so two rows are never
+indistinguishable. What the flag actually buys is a *location* column that stops repeating
+itself, which is worth having on the five clusters where distance differs and is noise on
+the four where it does not (see the correction below). Keep the mechanism; do not justify
+it with a collision that the name column already prevents.
 
 **`food_type` — 114 distinct values, overlapping and competing.** `Steak` (123)
 against `Steakhouse` (328); `American` (865) against `Contemporary American`
@@ -170,9 +180,18 @@ Two consequences for the transform:
   99508), McCormick & Schmick's Pittsburgh (6794 / 13990, both `Downtown`),
   Churrascos Houston (883 / 114319, both `West Side`), Cyclone Anaya's Houston
   (145366 / 151276, both `Midtown / Montrose`), plus Tien Biloxi, Jia Biloxi, JW
-  Marriott San Antonio and The Westgate Hotel San Diego. Distance is what
-  resolves these nine, which makes the last link of the `location_label`
-  fallback chain load-bearing rather than decorative.
+  Marriott San Antonio and The Westgate Hotel San Diego.
+
+  **Corrected 2026-09-03 — distance resolves five of the nine, not nine.** The claim
+  here was that distance is what separates all nine. Measured, four of them carry
+  **byte-identical `_geoloc`**, so distance is identical on both rows and cannot
+  separate anything: Tien Biloxi (11437 / 11434, both `850 Bayview Ave`), Jia Biloxi
+  (96121 / 91042), JW Marriott San Antonio (39706 / 39703) and The Westgate Hotel
+  San Diego (72961 / 72964). These are not two locations sharing a neighborhood —
+  they are two dining concepts at one address, `Teppanyaki / Shabu Shabu` beside
+  `Traditional Asian Dining`, `18 Oaks` beside `Cibolo Moon`. The last link of the
+  fallback chain is load-bearing on the five real cases (Fleming's, The Herb Box,
+  McCormick & Schmick's, Churrascos, Cyclone Anaya's) and inert on the other four.
 
 Low-cardinality fields, usable as facets as delivered:
 
@@ -308,7 +327,8 @@ two are in direct opposition and no setting provides both. Measured on this corp
 `prime`, `bistro` and `babylon`. Net −2, so `attribute` stays. See `test-queries.md`,
 the `exact` tie investigation.
 
-**`address` is not searchable either, and this one overrides section 5 as written.**
+**`address` is not searchable either.** The settings block above already reflects the
+removal; this paragraph records why it happened.
 Section 1 puts features with no stated pain out of scope however cheap they are, and no
 reported pain asks for street search. It also cost precision on the journeys that *are*
 in scope: matching typo-plus-prefix against street names, `kaya` returned 27 Waikiki
@@ -560,7 +580,10 @@ scripts/
   2-index.js                 # push records + push settings.json
   cuisine-taxonomy.json      # hand-reviewed food_type -> cuisine mapping
   settings.json              # versioned index configuration
-  synonyms.json              # abbreviation + alternative-spelling synonyms
+  synonyms.json              # NOT YET CREATED — abbreviation + alternative-spelling
+                             # synonyms. `2-index.js` reports its absence and continues;
+                             # K12 `pappas brothers` passes without it, so it stayed low
+                             # priority. Listed here as intent, not as a file on disk.
 data/
   records.json               # generated, gitignored
   enrichment-cache.json      # generated, gitignored
@@ -625,7 +648,14 @@ ALGOLIA_WRITE_API_KEY        # scripts only — NEVER prefixed with VITE_
 ```
 
 Adding `VITE_` to the write key would ship it in the bundle. Nothing in `src/`
-may read a non-prefixed variable, and nothing in `scripts/` needs a prefixed one.
+may read a non-prefixed variable — that half is what the guarantee rests on, and it holds:
+`src/` reads only the three `VITE_` names above plus Vite's own `import.meta.env.DEV`.
+
+The converse is looser than this file first stated. `scripts/2-index.js` reads
+`VITE_ALGOLIA_APP_ID`, `VITE_ALGOLIA_INDEX_NAME` and `VITE_ALGOLIA_SEARCH_API_KEY` as
+fallbacks so one `.env` serves both halves of the repo. That is harmless — all three are
+public by design — and it is the direction that cannot leak anything. Only the write key
+matters here, and it is never prefixed.
 
 `transform-report.md` must report, at minimum: record counts in/out, phone
 conflicts resolved, price conflicts resolved, `area` values without a separator,

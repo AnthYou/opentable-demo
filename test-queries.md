@@ -363,7 +363,7 @@ Search-as-you-type: the user stops typing early and the results must already be 
 | id | query | journey | expectation | status |
 |---|---|---|---|---|
 | K17 | `ruth` | P1 | The 31 Ruth's Chris records, disambiguated by `location_label`. 31 near-identical rows is a dead end; distinct labels are what make the list navigable. | **pass** |
-| K18 | `cyclone` | P1 | The 5 `Cyclone Anaya's` records, all in Houston, each showing a distinct location. | **fail** — 5 hits but only 4 distinct `location_label` values — 145366 and 151276 both read `Midtown / Montrose`. Both carry `location_label_ambiguous: true`, so the signal exists and this becomes a UI obligation. See the second run above. |
+| K18 | `cyclone` | P1 | The 5 `Cyclone Anaya's` records, all in Houston, each showing a distinct location. | **pass** — re-measured 2026-09-03 after the front end existed. The index still returns 4 distinct `location_label` values for 5 hits, but the two that collide (145366, 151276, both `Midtown / Montrose`) carry `location_label_ambiguous: true`, and `resolveLocationLabel` in `src/lib/format.js` completes them: 0.7 mi against 4.0 mi from central Houston, or `309 Gray St.` against `5214 Morningside Dr` when no position is known. The UI obligation the second run identified is now discharged. |
 | K19 | `pappas` | P1 | 1959 and 1854 in the top 2. | **pass** |
 | K20 | `melting` | P1 | The 26 Melting Pot records, disambiguated by location. | **pass** |
 
@@ -417,9 +417,9 @@ not a dead end.
 
 | id | case | journey | expectation | status |
 |---|---|---|---|---|
-| E1 | empty query, geolocation granted | P2 | Curated entry points render, plus geo-aware results. The UI states which location is in use. Never a blank screen. | **blocked** — describes UI behaviour; no front end exists yet. |
+| E1 | empty query, geolocation granted | P2 | Curated entry points render, plus geo-aware results. The UI states which location is in use. Never a blank screen. | **pass** — measured 2026-09-03 by rendering the app: 5 occasion cards, the cuisine chips, 24 hits, the geo banner and the location selector all present on an empty query. Never a blank screen. One limit stated rather than hidden: the browser-permission grant itself was verified at the parameter level (`geoParams({lat, lng})` reports `source: browser`), not through a real permission dialog — no browser tooling in this environment. |
 | E2 | empty query, default ranking | P2 | Top 20 by `popularity_score` are plausible institutions, per the section 4 calibration check. Measured on the extract with `m = 50`, `C = 4.2941`: the list includes 2767 `Mama's Fish House` (12,669 reviews), 3934 `GW Fins` (5,523) and 4487 `Restaurant August` (4,668), alongside three 5.0-star records with 139–242 reviews (31153, 5062 `Pazza Notte`, 78970 `Embers Steakhouse`). Those three are not thin-review artefacts — E4 shows the prior handles that tail correctly — so whether they belong in a top 20 is a judgment call on `m`, not a defect. Raising `m` is a settings change and gets a change-log line. | **accepted** — the expectation was written for a geo-less national default, and the empty query is now geo-led, which is correct for discovery. From Denver the top 20 is local: rank 1 is 10252 `Fruition Restaurant` (Denver, 4.8, 3,481 reviews), and 2767, 3934 and 4487 are absent because they are in Hawaii and New Orleans. The calibration this case was really testing — that thin-review 5.0s stay off the first screen — is what E4 checks, and E4 passes. Superseded rather than failing. |
-| E3 | empty query, geolocation denied | P2 | Falls back to `aroundLatLngViaIP`, then to a default metro, and **tells the user which** — per section 5, never leave the user geo-blocked or the results unexplained. | **blocked** — describes UI behaviour; no front end exists yet. |
+| E3 | empty query, geolocation denied | P2 | Falls back to `aroundLatLngViaIP`, then to a default metro, and **tells the user which** — per section 5, never leave the user geo-blocked or the results unexplained. | **pass** — measured 2026-09-03. `geoParams(null)` returns `source: ip` and sends `{aroundLatLngViaIP: true, aroundRadius: "all"}`, so proximity is never withdrawn. The rendered banner reads in full: *Nearest to your approximate location first, best rated within each area. Your browser has not shared a location, so this is an approximate position from your network.* — it names the rung and explains why it is approximate. The third rung exists as a control, the selector offering 10 markets with `DEFAULT_METRO` at New York. |
 | E4 | empty query, ranking sanity | P2 | 154318 `Ellen's Cafe` (5.0 stars, **1 review**) must not appear on the first screen. Exactly 21 records hold a 5.0, of which **18 have fewer than 50 reviews and 8 fewer than 10** — so `desc(stars_count)` alone would fill the entire first page from that pool, whatever the tie-break. With `m = 50` the Bayesian average drops 154318 to rank 2414 of 5000 and the other seven thin records to ranks 1523–2404. That gap is the justification for the prior. | **pass** |
 
 ## 9. Out-of-corpus query
@@ -446,6 +446,35 @@ testable rather than hypothetical.
 | G2 | `nobu`, geo = Denver | P1 | 74146 `Nobuo at Teeter House` (Phoenix) and 75256 `Mitsunobu` (Menlo Park) rank **below** the four true Nobu locations. Tests that prefix and substring matches do not outrank the exact brand. | **accepted** — 74146 at rank 2. `exactOnSingleWordQuery: "word"` fixes it exactly — all four Nobu score `exact=1`, Nobuo scores 0 — but measured at query time it breaks A2 (`prime` gives Bohanan's), A7 (`bistro` gives Costa Brava) and A8 (`babylon` gives Babylon Turkish). Net −2, so it is not applied. Rank 1 is a real Nobu and ranks 3–5 are the other three; rank 2 is a Japanese restaurant whose name genuinely begins with `Nobu`, plausibly what the user was typing. |
 | G3 | `italian`, geo = Denver | P2 | Geo leads. Denver-area Italian restaurants first, but `aroundPrecision` buckets must be coarse enough that `popularity_score` breaks ties inside a bucket — a marginally closer mediocre restaurant must not outrank an excellent one two streets further. | **pass** — since the precision dial replaced the empty-query rule on 2026-09-03. `italian` classifies as a category, so it gets the fine 5 km bucket and returns 10/10 Denver restaurants. Earlier note kept for the record: the index always did this correctly; it was the app that had stopped asking. Sent geo, the query returns all ten top hits in Denver with popularity strictly decreasing inside the bucket (4.688, 4.590, 4.589, 4.589, 4.497). But `italian` is a *typed* query, and since the single-surface rewrite geo parameters are sent only while the query is empty — otherwise `Ocean Prime - Denver` displaces 117067 `Prime` and A1, A2 and A6 fail. One discovery case traded for three known-item cases. Recovering it needs proximity as an explicit user control; see open question 10. |
 | G4 | `cyclone anaya's`, geo = Pittsburgh (40.4491, -79.9939) | P1 | All 5 Houston records still returned, ~1,900 km away. A known-item query must not be filtered by proximity, only ordered by it as a tie-break. | **pass** |
+
+---
+
+## Third run — 2026-09-03, the three cases the front end changed
+
+No settings were touched. Three statuses moved because the thing they were waiting on now
+exists, which is a re-measurement rather than a relevance change — hence a run section and
+no change-log row.
+
+**K18 `cyclone`: fail → pass.** The second run diagnosed it correctly and stopped at the
+diagnosis: the flag was right, the label alone was not, and the remainder was a UI
+obligation. `resolveLocationLabel` in `src/lib/format.js` now discharges it, appending
+0.7 mi against 4.0 mi from central Houston for 145366 and 151276, and falling back to
+`309 Gray St.` against `5214 Morningside Dr` when no position is known.
+
+**E1 and E3: blocked → pass.** Both were marked `blocked` because "nothing has been built
+for them to fail against". Something has. E1 renders 5 occasion cards, the cuisine chips,
+24 hits, the geo banner and the location selector on an empty query. E3 sends
+`{aroundLatLngViaIP: true, aroundRadius: "all"}` when no position is known and says so in
+full, naming the rung *and* explaining why it is approximate.
+
+**Cumulative: 43 pass, 6 accepted, 3 fail, 0 blocked, of 52.**
+
+The three remaining failures are O2, O3 and O4, all one root cause — `removeWordsIfNoResults`
+— and all still open as question 5 below.
+
+What is *not* claimed: no case was re-run in a browser. E1 was measured by rendering the
+component tree and E3 at the parameter level, so the browser-permission dialog itself
+remains unexercised. That limit is stated on the rows rather than left implicit.
 
 ---
 
@@ -516,7 +545,7 @@ Recorded now so they are not quietly forgotten once results start coming in.
    out-of-corpus queries return 0**, so this one setting closes O2, O3 and O4 together.
    The cost is unmeasured and is the whole question — `none` means a query carrying one
    unmatched word returns nothing at all, which is exactly the forgiveness persona 1
-   needs. `allOptional` sits between the two. Must be measured against all 42 passing
+   needs. `allOptional` sits between the two. Must be measured against all 43 passing
    cases before adoption, not just the three failures.
 6. **D6 (`sushi`)** — measured as passing, but the resolution is a UI obligation rather
    than a ranking one: name-matches lead and the `cuisine: Japanese` refinement has to be
