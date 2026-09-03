@@ -10,6 +10,35 @@ defended with a number, and the ones that are still wrong are written down.
 
 ---
 
+## Live
+
+**<https://opentable-demo-anthyous-projects.vercel.app>**
+
+That is the stable production alias and always serves the latest production build; the
+per-deployment URL carries a hash and changes on every build. `opentable-demo.vercel.app`
+is **not** this project — the short name belongs to someone else and serves an unrelated
+app, which is worth knowing before pasting a link into a deck.
+
+Vercel builds from `main` through the Git integration, so a push deploys. Node comes from
+`engines.node` at `24.x` in `package.json`, which is the only repo-side override Vercel
+reads — it does not read `.nvmrc`, which exists for local shells only.
+
+Three environment variables are set in Project Settings, and only three:
+`VITE_ALGOLIA_APP_ID`, `VITE_ALGOLIA_SEARCH_API_KEY`, `VITE_ALGOLIA_INDEX_NAME`. Vercel
+does not read `.env`. `ALGOLIA_WRITE_API_KEY` is deliberately **absent** from the
+deployment: nothing in the browser bundle needs it, and adding it would create exposure
+with no use.
+
+Vercel refused the search key at first, asking for an explicit choice because the name
+looks like a credential and `VITE_` publishes it. It was allowed through as a public
+`config` value only after its permissions were verified rather than assumed: `PUT
+/settings`, `POST` an object and `DELETE` an index all return **403**, search and
+`listIndexes` return 200. It is search-only, which is what §7 relies on. The built bundle
+was then checked directly, anonymously, and the write key appears in none of the served
+assets.
+
+---
+
 ## Running it
 
 Node 24 is required — the toolchain needs `^20.19 || >=22.12` and the Node 20 line went
@@ -39,10 +68,6 @@ Both scripts fail loudly rather than degrade: a join below 100%, an unknown pric
 an unmapped cuisine, a phone that does not yield ten digits, a settings attribute that
 does not exist on the records, or a `VITE_`-prefixed write key all abort the run with the
 reason. `node scripts/2-index.js --dry-run` validates everything and touches no network.
-
-**Not yet deployed.** CLAUDE.md §7 asks for deployment from the first commit precisely
-because environment variables and build config fail in ways local development hides, and
-that has not been done. Treat it as an open item, not a finished one.
 
 ---
 
@@ -279,13 +304,12 @@ order, which is what a ranking criterion does and a filter does not.
 
 In rough order of value:
 
-1. **Deploy.** §7 asks for it from the first commit and it has not happened.
-2. **Resolve `removeWordsIfNoResults`** against all 43 passing cases, not just the three
+1. **Resolve `removeWordsIfNoResults`** against all 43 passing cases, not just the three
    failures it fixes. This is now the only open relevance question: O2, O3 and O4 are the
    three remaining failures and they share this one root cause.
-3. **Run the remaining relevance work as measured single changes.** The loop exists and
+2. **Run the remaining relevance work as measured single changes.** The loop exists and
    has caught three bad ideas already; the discipline is worth more than any single fix.
-4. **Synonyms** for the abbreviation tail — 66 records carry a period abbreviation. Lower
+3. **Synonyms** for the abbreviation tail — 66 records carry a period abbreviation. Lower
    priority than it looked: `pappas brothers` already passes without one.
 
 Beyond the prototype, and the reason the event stream is instrumented from the start:
