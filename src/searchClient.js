@@ -77,6 +77,4 @@ export const searchClient = liteClient(appId, searchApiKey);
 export const sortOptions = [
   { label: 'Most relevant', value: indexName },
   { label: 'Top rated', value: `${indexName}_rating_desc` },
-  { label: 'Price: low to high', value: `${indexName}_price_asc` },
-  { label: 'Price: high to low', value: `${indexName}_price_desc` },
 ];

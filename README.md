@@ -168,4 +168,4 @@ Index configuration lives in the repo and is pushed by script, never edited in t
 dashboard.
 
 **Stack:** Vite + React InstantSearch. Six runtime dependencies, 143 KB gzipped. The index
-is `restaurants` plus three virtual replicas for the sort control.
+is `restaurants` plus one virtual replica, `rating_desc`, for the sort control.

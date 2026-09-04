@@ -104,37 +104,11 @@
       "suffix": "rating_desc",
       "type": "virtual",
       "label": "Top rated",
-      "rationale": "Sorts on popularity_score, not stars_count. A raw-rating sort was rejected: 154318 `Ellen's Cafe` holds a 5.0 on a single review, and 18 of the 21 five-star records have fewer than 50 reviews, so `desc(stars_count)` would hand the first page to the thinnest evidence in the corpus under a label the user reads as a quality guarantee. The Bayesian average is what makes the label honest. Distinct from the primary because here popularity is applied as the sort criterion rather than as a tie-break after text relevance.",
+      "rationale": "Sorts on popularity_score, not stars_count. A raw-rating sort was rejected: 154318 `Ellen's Cafe` holds a 5.0 on a single review, and 18 of the 21 five-star records have fewer than 50 reviews, so `desc(stars_count)` would hand the first page to the thinnest evidence in the corpus under a label the user reads as a quality guarantee. The Bayesian average is what makes the label honest. Distinct from the primary because here popularity is applied as the sort criterion rather than as a tie-break after text relevance. **`relevancyStrictness` stays at 50, and 0 was measured and rejected here on 2026-09-04.** 50 is what keeps this sort local: `geo` sits second in `ranking` and geo is sent on every request, so the relevance band the strictness preserves *is* the band of records near the user, and popularity_score orders them inside it. At 0 the replica sorts on `customRanking` alone and the geo dimension disappears \u2014 from Denver the empty query leads with Cafe Monarch in Scottsdale and Geronimo in Santa Fe, 4 of 24 records in Denver against 24 of 24 at 50; `sushi` from Houston returns 0 of 24 in Houston. A diner wants the best-rated restaurant *around them*, not the best-rated in the country. And at 50 the sort is genuinely distinct from the primary rather than a second copy of it: `italian` from Midtown West shares only 6 of 24 records with *Most relevant*, surfacing Sette (4.8) and Via 45 (4.7) slightly further out that proximity buries; `sushi` from Denver leads with Sushi Sasa (4.6) and Banzai (4.5) where the primary leads with the nearer Hapa (4.4). The cost is a thin sorted set where the local band is thin \u2014 `sushi` from Houston sorts 6 of 106 \u2014 which `<Stats>` states as \"6 relevant results sorted out of 106\" rather than hiding.",
       "settings": {
         "customRanking": [
           "desc(popularity_score)",
           "desc(reviews_count)"
-        ],
-        "relevancyStrictness": 50
-      }
-    },
-    {
-      "suffix": "price_asc",
-      "type": "virtual",
-      "label": "Price: low to high",
-      "rationale": "price_tier is derived from the price_range label, never from the JSON price int, which contradicts it on 220 records. Only 3 tiers exist, so popularity_score does the real ordering inside each tier — without that second criterion a third of the corpus would be returned in arbitrary order.",
-      "settings": {
-        "customRanking": [
-          "asc(price_tier)",
-          "desc(popularity_score)"
-        ],
-        "relevancyStrictness": 50
-      }
-    },
-    {
-      "suffix": "price_desc",
-      "type": "virtual",
-      "label": "Price: high to low",
-      "rationale": "Mirror of price_asc. Kept as a separate replica rather than a UI reversal because virtual replicas cannot be read backwards.",
-      "settings": {
-        "customRanking": [
-          "desc(price_tier)",
-          "desc(popularity_score)"
         ],
         "relevancyStrictness": 50
       }

@@ -493,7 +493,8 @@
 
 .ais-SortBy-select {
   height: 34px;
-  padding: 0 1.75rem 0 0.625rem;
+  /* Right padding clears the native arrow: 1.75rem left the label touching it. */
+  padding: 0 2.25rem 0 0.75rem;
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   background-color: var(--surface);

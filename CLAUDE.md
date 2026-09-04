@@ -106,7 +106,7 @@ cuisine             string          # normalised primary, single value
 cuisine_tags        string[]        # secondary / related tags
 dining_style        string
 price_range         string          # canonical, from CSV; user-facing
-price_tier          int (1-3)       # derived from price_range, for sorting
+price_tier          int (1-3)       # derived from price_range; facet + occasions input
 stars_count         float
 reviews_count       int
 popularity_score    float           # Bayesian average, see below
@@ -159,7 +159,7 @@ queryType: "prefixLast"
 ignorePlurals: false
 removeStopWords: false
 removeWordsIfNoResults: "lastWords"    # the one open relevance question
-replicas (virtual): rating_desc, price_asc, price_desc
+replicas (virtual): rating_desc          # relevancyStrictness 50, see below
 ```
 
 Every setting is declared explicitly, including those matching Algolia's default: an
@@ -176,6 +176,14 @@ eat, and someone wanting a restaurant in another city names that city — ten ci
 queries each return exactly one hit at rank 1. The cost is recorded on `test-queries.md`
 A1, A2 and A6, which are `accepted` rather than passing. **Do not reorder `ranking`
 without reading those three cases and the five previous orders in `DECISIONS.md`.**
+
+**One sort replica, and its `relevancyStrictness: 50` is what makes it local.** `geo` is
+second in `ranking` and is sent on every request, so the relevance band a virtual replica
+preserves is the band of records near the user; `popularity_score` orders them inside it.
+That is the sort a diner wants — best rated *around me*. At `0` the replica sorts on
+`customRanking` alone and the geo dimension disappears: from Denver the empty query leads
+with Scottsdale and Santa Fe, 4 of 24 records in Denver against 24 of 24 at `50`. Do not
+set it to `0`.
 
 **The three place facets are `searchable()`** because `App.jsx` renders a search box on
 each, and 916 cities and 1,062 neighborhoods cannot be reached by scrolling a `limit` of 6.
