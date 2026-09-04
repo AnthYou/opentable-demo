@@ -202,6 +202,10 @@ const baseParams = {
     'phone',
   ],
 
+  // Narrower than the index default on purpose. `scripts/settings.json` declares six
+  // attributes; these three are the ones the card renders, and the query-level list wins,
+  // so this is what is in force. The other three — `chain_name`, `neighborhood`, `city` —
+  // would ship highlight markup nothing displays.
   attributesToHighlight: ['name', 'cuisine', 'cuisine_tags'],
 
   clickAnalytics: true,
