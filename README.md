@@ -27,9 +27,8 @@ tell apart. Hence name-first relevance, typo tolerance, and location labels that
 through to distance when the neighbourhood repeats.
 
 **Discovery.** No restaurant in mind. The empty query renders curated occasion and cuisine
-entry points, a cuisine facet of 37 values, place facets with search boxes, three sort
-replicas and proximity ordering. An autocomplete dropdown was built and removed — it showed
-the same records as the page, one keystroke earlier.
+entry points, a cuisine facet of 37 values, place facets with search boxes, a rating sort
+and proximity ordering.
 
 ---
 
@@ -61,10 +60,11 @@ Pittsburgh. At `minWordSizefor1Typo: 4` each ranks 1 on its own query.
 ## Configuration decisions
 
 **`searchableAttributes` is name-first:** `unordered(name)`, then cuisine, then the place
-fields. `chain_name` and `address` were removed. All 722 chained records have a name
-beginning with their `chain_name`, so it reached nothing new while handing every chain member
-a whole-attribute exact match that cancelled the real name match. `address` added noise:
-`kaya` returned 27 Waikiki restaurants on Kalakaua Avenue among 67 hits, 40 without it.
+fields. `chain_name` and `address` are retrieved for display and never searched. All 722
+chained records have a name beginning with their `chain_name`, so searching it reaches
+nothing new while handing every chain member a whole-attribute exact match that cancels the
+real name match. Searching `address` pulls in neighbours by street: `kaya` would reach 27
+Waikiki restaurants on Kalakaua Avenue, and no stated pain asks for street search.
 
 **Geo is always sent, at a 5 km `aroundPrecision` bucket, on every query.** `aroundRadius`
 stays unbounded because a bounded radius returns nothing for most positions in a sparse
@@ -78,8 +78,8 @@ can lose to a nearer partial match, recorded on three accepted cases.
 **Three query rules turn a category-shaped query into a filtered browse.** A query equal to
 a value of `cuisine`, `dining_style` or `occasions` has its words removed and the value
 applied as a facet filter, so ordering falls to proximity then rating. `dining_style` and
-`occasions` are not searchable attributes, so those queries were failing outright before —
-`casual elegant` returned 0 hits against 2,130 records, `date night` 6 against 1,639.
+`occasions` are not searchable attributes, so a rule is what makes those queries work at
+all: `casual elegant` reaches its 2,130 records, `date night` its 1,639.
 
 **`popularity_score` is a Bayesian average over `stars_count`, `m = 50`.** 21 records hold a
 5.0 and 18 of those have under 50 reviews; the prior puts `Ellen's Cafe` (5.0, one review) at
