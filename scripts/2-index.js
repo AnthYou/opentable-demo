@@ -4,6 +4,7 @@
  *
  * Reads   data/records.json          (produced by 1-transform.js)
  *         scripts/settings.json      (versioned index configuration)
+ *         scripts/rules.json         (versioned query rules)
  *         scripts/synonyms.json      (optional; absent for now)
  *         .env                       (unprefixed write key)
  *
@@ -35,6 +36,7 @@ import 'dotenv/config';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const RECORDS = path.join(ROOT, 'data/records.json');
 const SETTINGS = path.join(ROOT, 'scripts/settings.json');
+const RULES = path.join(ROOT, 'scripts/rules.json');
 const SYNONYMS = path.join(ROOT, 'scripts/synonyms.json');
 const ENV_FILE = path.join(ROOT, '.env');
 
@@ -145,10 +147,43 @@ for (const a of primarySettings.numericAttributesForFiltering ?? []) referenced.
 for (const a of primarySettings.customRanking ?? []) unwrap(a).forEach((x) => referenced.add(x));
 for (const r of settingsFile.replicas) for (const a of r.settings.customRanking ?? []) unwrap(a).forEach((x) => referenced.add(x));
 
+/** `searchable(city)` and `filterOnly(is_chain)` both declare a facet on the inner name. */
+const unwrapFacet = (a) => a.replace(/^\w+\((.*)\)$/, '$1');
+
 const fields = new Set(Object.keys(records[0]));
 const dangling = [...referenced].filter((f) => !fields.has(f));
 if (dangling.length) {
   fail(`settings.json references attribute(s) absent from records.json: ${dangling.join(', ')}. Algolia would accept these and silently never match on them.`);
+}
+
+/**
+ * Query rules. Unlike synonyms this file is required, because the rules in it are
+ * load-bearing: without `category-query-dining_style` and `category-query-occasions`,
+ * `casual elegant` returns 0 hits and `date night` returns 6 instead of 1,639, since
+ * neither attribute is in `searchableAttributes`. A missing file would degrade the
+ * discovery journey silently, so it aborts instead.
+ *
+ * Every faceted attribute a rule filters on must be in `attributesForFaceting`, or
+ * Algolia accepts the rule and the filter matches nothing.
+ */
+let rules = null;
+if (!fs.existsSync(RULES)) fail(`${path.relative(ROOT, RULES)} is missing. It carries the category-query rules the discovery journey depends on.`);
+{
+  const rulesFile = JSON.parse(fs.readFileSync(RULES, 'utf8'));
+  rules = rulesFile.rules;
+  if (!Array.isArray(rules) || rules.length === 0) fail('rules.json must carry a non-empty `rules` array');
+  const facetable = new Set((primarySettings.attributesForFaceting ?? []).map((a) => unwrapFacet(a)));
+  rules.forEach((r, i) => {
+    if (!r.objectID) fail(`rule at position ${i} has no objectID. Stable ids are what make a rule reviewable in a diff.`);
+    if (/^qr-\d+$/.test(r.objectID)) fail(`rule ${r.objectID} carries a dashboard-generated id. Rename it to something a diff can explain.`);
+    if (!r.conditions?.length || !r.consequence) fail(`rule ${r.objectID} needs both conditions and a consequence`);
+    for (const f of r.consequence.params?.automaticFacetFilters ?? []) {
+      const attr = typeof f === 'string' ? f : f.facet;
+      if (!facetable.has(attr)) {
+        fail(`rule ${r.objectID} filters on \`${attr}\`, which is not in attributesForFaceting. Algolia would accept the rule and the filter would match nothing.`);
+      }
+    }
+  });
 }
 
 let synonyms = null;
@@ -167,6 +202,7 @@ if (doSettings) {
   for (const r of settingsFile.replicas) plan.push(`setSettings  ${replicaName(r)}  (${r.type}: ${Object.keys(r.settings).join(', ')})`);
 }
 if (doRecords) plan.push(`saveObjects  ${indexName}  (${records.length} records)`);
+if (doSettings) plan.push(`saveRules    ${indexName}  (${rules.length} rules, replacing existing: ${rules.map((r) => r.objectID).join(', ')})`);
 if (doSettings && synonyms) plan.push(`saveSynonyms ${indexName}  (${synonyms.length} synonyms, replacing existing)`);
 if (PRUNE) plan.push(`browse + deleteObjects ${indexName}  (remove objectIDs absent from records.json)`);
 
@@ -174,6 +210,7 @@ console.log(`app       ${appId}`);
 console.log(`index     ${indexName}`);
 console.log(`write key ${mask(writeKey)}`);
 console.log(`records   ${records.length} from ${path.relative(ROOT, RECORDS)}`);
+console.log(`rules     ${rules.length} from ${path.relative(ROOT, RULES)}`);
 console.log(`synonyms  ${synonyms ? `${synonyms.length} from ${path.relative(ROOT, SYNONYMS)}` : 'none — scripts/synonyms.json absent, so test-queries.md K12 `pappas brothers` cannot pass yet'}`);
 console.log(`\nplan (${plan.length} operation${plan.length === 1 ? '' : 's'}):`);
 plan.forEach((p, i) => console.log(`  ${i + 1}. ${p}`));
@@ -221,6 +258,15 @@ try {
   if (doRecords) {
     process.stdout.write(`saveObjects ${indexName} (${records.length} records) ... `);
     await client.saveObjects({ indexName, objects: records, waitForTasks: true });
+    console.log('done');
+  }
+
+  if (doSettings) {
+    // clearExistingRules so this file is the whole rule set. Without it a rule deleted
+    // here would survive in the index, and the repo would stop describing what is live.
+    process.stdout.write(`saveRules ${indexName} (${rules.length}) ... `);
+    const rr = await client.saveRules({ indexName, rules, clearExistingRules: true });
+    await client.waitForTask({ indexName, taskID: rr.taskID });
     console.log('done');
   }
 

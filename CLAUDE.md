@@ -279,9 +279,26 @@ run.
 
 ## 5. Index configuration
 
-`settings.json` lives in the repo and is pushed by the index script. Settings are
-not edited in the dashboard: the index configuration is part of the codebase, it
+`settings.json` and `rules.json` live in the repo and are pushed by the index script.
+Neither is edited in the dashboard: the index configuration is part of the codebase, it
 gets reviewed in diffs, and a dashboard-only change is a change nobody can trace.
+`2-index.js` pushes rules with `clearExistingRules`, so the file is the whole rule set,
+and it rejects a dashboard-generated `qr-<timestamp>` objectID or a rule filtering on an
+attribute absent from `attributesForFaceting`.
+
+**Three query rules turn a category-shaped query into a filtered browse.** A query equal
+to a value of `cuisine`, `dining_style` or `occasions` has its words removed and the value
+applied as a facet filter, so ordering falls to `geo` then `popularity_score` instead of
+the `attribute` criterion, which ranks a name match above a better-rated cuisine match.
+One rule per attribute via the `{facet:<attribute>}` placeholder covers 48 values; the
+measured rule quota on this application is at least 4, so one rule per value was never an
+option. `dining_style` and `occasions` are absent from `searchableAttributes`, which is
+why those queries failed outright before — `casual elegant` returned 0 hits against 2,130
+records, `date night` 6 against 1,639. `cuisine_tags` deliberately has no rule: for 12 of
+its 102 values the tag covers far fewer records than the word reaches, so a hard filter
+would shrink the result set — `American` marks 32 records against 1,763 text matches — and
+two of its values are restaurant names. Details and counts in `scripts/rules.json` and
+`test-queries.md`.
 
 ```
 searchableAttributes: [
@@ -612,6 +629,7 @@ scripts/
   2-index.js                 # push records + push settings.json
   cuisine-taxonomy.json      # hand-reviewed food_type -> cuisine mapping
   settings.json              # versioned index configuration
+  rules.json                 # versioned query rules, pushed by 2-index.js
   synonyms.json              # NOT YET CREATED — abbreviation + alternative-spelling
                              # synonyms. `2-index.js` reports its absence and continues;
                              # K12 `pappas brothers` passes without it, so it stayed low

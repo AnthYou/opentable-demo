@@ -1,0 +1,101 @@
+{
+  "_about": {
+    "purpose": "Versioned Algolia query rules, pushed by scripts/2-index.js. Rules are never edited in the dashboard for the same reason settings are not: the configuration is part of the codebase, it gets reviewed in diffs, and a dashboard-only change is a change nobody can trace (CLAUDE.md §5). These rules are load-bearing for the discovery journey, so that applies with force.",
+    "contract_for_2-index.js": [
+      "Push `rules` verbatim as the saveRules payload, with clearExistingRules true so this file is the whole rule set rather than an addition to whatever the dashboard holds.",
+      "Keys prefixed with `_` are documentation and must never be sent to Algolia.",
+      "Each rule needs a stable, human-readable objectID. Dashboard-created rules get generated ids like `qr-1788481215709`, which say nothing in a diff."
+    ],
+    "quota": "Measured 2026-09-04: this application allows at least 4 rules. That is why each rule uses a `{facet:<attribute>}` placeholder covering every value of an attribute, rather than one rule per value — the four taxonomy attributes hold 150 values between them."
+  },
+  "_rationale": {
+    "why_these_exist": "A query that is exactly a category name is a browse, not a text search. Ranked as text it is ordered by the `attribute` criterion before `custom`, so inside one distance bucket a restaurant with the category in its NAME outranks a better-rated one whose CUISINE is the category: `steakhouse` from Denver led with Morton's The Steakhouse (4.2) above Guard & Grace (4.7), `french` from Midtown West with French Roast Bar & Bistro (4.1) above Le Bernardin (4.7). Removing the query words and applying the value as a facet filter takes the text criteria out of the comparison entirely, leaving `geo` then `popularity_score` — the best-rated restaurant nearby, which is what the discovery journey asks for. The alternative was reordering `ranking` to put `custom` above `attribute`; that was measured and set aside in favour of these rules, so the ranking formula stays Algolia's default. See test-queries.md and DECISIONS.md.",
+    "category-query-cuisine": "37 values, 0 of which are also a restaurant name, so nothing becomes unreachable. Measured after the rule: `italian` returns the 890 `cuisine:Italian` records led by Barolo Grill (4.7) rather than 895 text matches, `steakhouse` the 486 Steakhouse records led by Guard & Grace (4.7), `thai` 25. `alternatives: true` also catches the plural, so `italians` behaves as `italian`.",
+    "category-query-dining_style": "4 values, 0 name collisions. This attribute is NOT in `searchableAttributes`, so without the rule these queries fail outright: measured, `casual elegant` returned **0 hits** against 2,130 records carrying the value, and `fine dining` returned 1 — 79269 `Flyte World Dining & Wine`, matched on its name — against 641.",
+    "category-query-occasions": "7 values, 0 name collisions. Also absent from `searchableAttributes`, and the failures were worse: `date night` returned 6 hits against 1,639, the first being `Dante Ristorante Pizzeria` reached by typo tolerance on `Dante`; `business lunch` 8 against 1,627; `family friendly` 1 (`Patzeria Family & Friends`) against 1,858. This is also the vocabulary the curated entry-point cards use, so typing an occasion now does what clicking the card does. `occasions` is derived rather than observed (CLAUDE.md §4) and the UI states that wherever it appears; the rule does not change its provenance."
+  },
+  "_deliberately_absent": {
+    "category-query-cuisine_tags": "Measured 2026-09-04 and rejected. `automaticFacetFilters` is a hard filter, and for 12 of the 102 tag values the tag covers far fewer records than the word matches, so the rule would shrink the result set instead of reordering it: `American` marks 32 records while the word reaches 1,763 (the primary cuisine covers 1,610 of them), `Bar` 4 against 373, `Bistro` 4 against 208, `Sushi` 67 against 106. 75 of the 102 values sit within ±5 and would be harmless — `churrascaria` 33 to 33, `farm to table` 149 to 149 — but the values that would break are the most likely queries. `cuisine_tags` is already in `searchableAttributes`, so those queries work today. Two tag values are also restaurant names, `Bistro` (100624) and `Small Plates` (112537), and a hard filter would make those two records unreachable by their own name rather than merely badly ranked.",
+    "multi_word_category_queries": "`anchoring: is` fires only when the whole query equals a facet value, so `italian restaurant`, `cheap italian` and `sushi near me` are unaffected and still return text matches — 98 hits for the first. Closing that needs query categorisation, which CLAUDE.md §9 lists as out of scope."
+  },
+  "rules": [
+    {
+      "objectID": "category-query-cuisine",
+      "description": "A query that is exactly a cuisine value becomes a filtered browse of that cuisine",
+      "enabled": true,
+      "conditions": [
+        {
+          "pattern": "{facet:cuisine}",
+          "anchoring": "is",
+          "alternatives": true
+        }
+      ],
+      "consequence": {
+        "params": {
+          "automaticFacetFilters": [
+            {
+              "facet": "cuisine"
+            }
+          ],
+          "query": {
+            "remove": [
+              "{facet:cuisine}"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "objectID": "category-query-dining_style",
+      "description": "A query that is exactly a dining_style value becomes a filtered browse of that style",
+      "enabled": true,
+      "conditions": [
+        {
+          "pattern": "{facet:dining_style}",
+          "anchoring": "is",
+          "alternatives": true
+        }
+      ],
+      "consequence": {
+        "params": {
+          "automaticFacetFilters": [
+            {
+              "facet": "dining_style"
+            }
+          ],
+          "query": {
+            "remove": [
+              "{facet:dining_style}"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "objectID": "category-query-occasions",
+      "description": "A query that is exactly an occasions value becomes a filtered browse of that occasion",
+      "enabled": true,
+      "conditions": [
+        {
+          "pattern": "{facet:occasions}",
+          "anchoring": "is",
+          "alternatives": true
+        }
+      ],
+      "consequence": {
+        "params": {
+          "automaticFacetFilters": [
+            {
+              "facet": "occasions"
+            }
+          ],
+          "query": {
+            "remove": [
+              "{facet:occasions}"
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

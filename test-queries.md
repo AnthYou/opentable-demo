@@ -374,9 +374,9 @@ behaves as a facet rather than as free text.
 
 | id | query | journey | expectation | status |
 |---|---|---|---|---|
-| D1 | `steakhouse` | P2 | Returns the 486 records under primary cuisine `Steakhouse`. Critically, `Steak` (123) and `Steakhouse` (328) must not appear as two separate refinements — that merge is the whole point of the taxonomy. | **pass** |
-| D2 | `fondue` | P2 | The 30 `Fondue` records. 26 of them are Melting Pot locations, so the result set is legitimately chain-dominated; the UI must not read as broken because of it. | **pass** |
-| D3 | `thai` | P2 | The 25 `Thai` records. | **pass** |
+| D1 | `steakhouse` | P2 | Returns the 486 records under primary cuisine `Steakhouse`. Critically, `Steak` (123) and `Steakhouse` (328) must not appear as two separate refinements — that merge is the whole point of the taxonomy. | **pass** — and since the `category-query-cuisine` rule of 2026-09-04 the count is exactly 486 rather than 513: the query is now a filtered browse of `cuisine:Steakhouse` instead of a text search, so the 27 records that merely carried the word in a name are gone. Rank 1 from Denver is Guard & Grace (4.7), previously Morton's The Steakhouse (4.2). |
+| D2 | `fondue` | P2 | The 30 `Fondue` records. 26 of them are Melting Pot locations, so the result set is legitimately chain-dominated; the UI must not read as broken because of it. | **pass** — exactly 30 since the cuisine rule, previously 31; the extra was 88492 `Der Fondue Chessel`, reached by name. |
+| D3 | `thai` | P2 | The 25 `Thai` records. | **pass** — exactly 25 since the cuisine rule, previously 45. The 20 extra were name matches such as `Taste of Thailand - Omaha`, which the filtered browse excludes. From Denver the nearest is Omaha at 475 mi: the corpus holds **0** Thai restaurants in Denver. |
 | D4 | `vietnamese` | P2 | 22558 `Indochine` and 2527 `Three Seasons` returned. Both were folded into primary cuisine `Asian` with a `Vietnamese` tag — this case verifies the fold did not make the term unsearchable. | **pass** |
 | D5 | `churrascaria` | P2 | The 33 `Brazilian Steakhouse` records. They sit under primary `Steakhouse` with a `Churrascaria` tag; the term appears nowhere in the source `food_type` values, only in the taxonomy tags. | **pass** |
 | D6 | `sushi` | P2 | **⚠ contested by design.** 72 records carry "sushi" in the *name* while 67 have `food_type: Sushi` and 140 `Japanese`. With `unordered(name)` first in `searchableAttributes`, the 72 name-matches outrank the cuisine matches. That is correct for persona 1 and wrong for persona 2. Resolution: name-matches rank first, and the page must surface a `cuisine: Japanese` refinement prominently instead of reordering. Recorded here so the trade-off is deliberate, not accidental. | **accepted** — the documented resolution inverted on 2026-09-04, in the direction this case says is right for persona 2. `geo` now sits above `attribute`, so a near record matching through `cuisine` outranks a distant one matching through `name`: from Denver the top ten are Denver and Boulder Japanese restaurants at 1–25 mi, of which 3 of the first 4 carry "sushi" in the name and the fourth (100009 `Epernay`) does not. The literal criterion — 10/10 top hits carrying "sushi" in the name — is therefore not met, while `cuisine: Japanese` is still reachable at 94. The case was written when name matches led unconditionally and it recorded that as "correct for persona 1 and wrong for persona 2"; the new order is the reading it preferred. |
@@ -569,6 +569,67 @@ boot-time assertion policing the two sets goes away with them.
 
 ---
 
+## Fifth run — 2026-09-04, query rules for category-shaped queries
+
+Three rules replace the ranking change that was measured and set aside on 2026-09-04. A
+query equal to a facet value now has its words removed and the value applied as a facet
+filter, so the text criteria leave the comparison entirely and ordering falls to `geo`
+then `popularity_score`.
+
+One rule per attribute rather than one per value, using the `{facet:<attribute>}`
+placeholder: 3 rules cover 48 values. Measured, the application's rule quota is at least 4
+and 150 values would never have fitted.
+
+**What it fixes.** `dining_style` and `occasions` are not in `searchableAttributes`, so
+those queries were the worst results in the app:
+
+| query | before | after | rank 1 from Denver |
+|---|---|---|---|
+| `casual elegant` | **0 hits** | 2,130 | Fruition Restaurant (4.8) |
+| `fine dining` | 1 hit | 641 | Kevin Taylor's At The Opera House (4.7) |
+| `family friendly` | 1 hit | 1,858 | the plimoth (4.7) |
+| `date night` | 6 hits | 1,639 | Mizuna (4.7) |
+| `business lunch` | 8 hits | 1,627 | Mizuna (4.7) |
+| `late night` | 68 hits | 73 | — |
+| `steakhouse` | 513 hits, Morton's (4.2) | 486 | Guard & Grace (4.7) |
+| `french` | 229 hits, French Roast (4.1) | 229 | Le Bernardin territory |
+| `italian` | 895 hits | 890 | Barolo Grill (4.7) |
+
+`date night` previously returned `Dante Ristorante Pizzeria` first, reached by typo
+tolerance on `Dante`. `casual elegant` returned nothing at all.
+
+**Zero regressions.** 39 mechanically checkable cases re-run against the live index:
+39/39. No rule fires on a name query — `prime`, `rye`, `cyclone`, `bistro`, `nobu`,
+`pappas` and every K case are byte-identical, because `anchoring: is` requires the whole
+query to equal a facet value.
+
+**Three cases now match their written hit counts for the first time.** D1 `steakhouse`
+486 (was 513), D2 `fondue` 30 (was 31), D3 `thai` 25 (was 45). Those numbers were taken
+from the transform report when the cases were written, and a text search never reproduced
+them because names carrying the category word inflated every count. A filtered browse
+returns the facet count by construction.
+
+**`cuisine_tags` was measured and rejected**, though it is the obvious fourth rule.
+`automaticFacetFilters` is a hard filter, and for 12 of its 102 values the tag covers far
+fewer records than the word reaches, so the rule would shrink the result set rather than
+reorder it: `American` marks 32 records against 1,763 text matches, `Bar` 4 against 373,
+`Bistro` 4 against 208, `Sushi` 67 against 106. 75 values sit within ±5 and would be
+harmless — `churrascaria` 33 to 33, `farm to table` 149 to 149 — but the ones that would
+break are the most likely queries. Two tag values are also restaurant names, `Bistro`
+(100624) and `Small Plates` (112537), and a hard filter would make those unreachable by
+their own name rather than merely badly ranked. `cuisine_tags` is already searchable, so
+those queries work today.
+
+**Still open.** `anchoring: is` fires only on an exact whole-query match, so
+`italian restaurant` (98 hits), `cheap italian` and `sushi near me` are untouched. That
+remains the query-categorisation gap in CLAUDE.md §9.
+
+The rules live in `scripts/rules.json` and are pushed by `2-index.js` with
+`clearExistingRules`, so the file is the whole rule set. The dashboard-created rule that
+prototyped this was replaced by `category-query-cuisine` on the same push.
+
+---
+
 ## Settings change log
 
 One line per settings change. One setting at a time — five at once makes the result
@@ -595,6 +656,8 @@ unattributable. A change with no motivating case does not belong here.
 | 2026-09-04 | `exactOnSingleWordQuery` — **re-evaluated under the new `ranking`, not applied** | `attribute` → `word` | **G2** `nobu`, now a fail | Fixes G2 exactly: the four Nobu score `exact=1` as a whole word, 74146 `Nobuo` scores 0. | **Breaks A1, A2 and A6.** With `word`, `Bohanan's Prime Steaks` also scores `exact=1` on `prime`, so the tie moves to `geo` and the nearer record wins again — the precise failure the `exact` promotion exists to prevent. 30/37 against 32/37, the same net −2 measured on 2026-09-03 under the old order. `attribute` kept. |
 
 | 2026-09-04 | `ranking` — `attribute` demoted below `custom` | `[…,"proximity","attribute","custom"]` → `[…,"proximity","custom","attribute"]` | reading the `italian` result page: worse-rated restaurants ranked above better ones for carrying "italian" in the name | **Every category query now leads with the best-rated nearby restaurant.** `steakhouse` from Denver: Guard & Grace (4.7) replaces Morton's The Steakhouse (4.2). `french` from Midtown West: Le Bernardin (4.7) replaces French Roast Bar & Bistro (4.1). `pizza`: Delizia 92 (5.0) replaces Lazzara's Pizza Cafe (4.1). `downtown` from Houston: Andalucia Tapas (4.7) replaces four records with "Downtown" in the name. `italian` from Houston Downtown: Da Marco (4.7) rank 1, previously Little Napoli (4.1) at rank 4. Reverting to Algolia's default was evaluated first and does **not** fix this — the default also places `attribute` before `custom`, and on New York it is worse still. | **none.** 39/44 either way, no case status changed. `midtown`, `fish house`, `tavern` and `sushi` byte-identical. Name relevance is unaffected because it is carried by `exact`, five criteria earlier: A1 `rye`, A2 `prime`, A6 `union`, A8 `babylon`, A3/A4 `naya`/`kaya` and every K case still pass. |
+
+| 2026-09-04 | **query rules** — `scripts/rules.json`, 3 rules added | no rules → `category-query-cuisine`, `category-query-dining_style`, `category-query-occasions` | `italian` and `steakhouse` ranking a worse-rated restaurant first for carrying the category in its name | **A category query is now a filtered browse.** `casual elegant` 0 hits → 2,130, `fine dining` 1 → 641, `family friendly` 1 → 1,858, `date night` 6 → 1,639 (previously led by `Dante Ristorante`, a typo match), `business lunch` 8 → 1,627 — `dining_style` and `occasions` are not searchable attributes, so those queries had been failing outright. `steakhouse` leads with Guard & Grace (4.7) instead of Morton's (4.2). D1, D2 and D3 now return exactly the counts their expectations name: 486, 30, 25. | **none.** 39/39 mechanically checkable cases pass. `anchoring: is` means no rule fires on a name query, so `prime`, `rye`, `cyclone`, `bistro`, `nobu` and every K case are byte-identical. `cuisine_tags` was measured and rejected as a fourth rule — see the fifth run. |
 
 The initial configuration in `scripts/settings.json` was pushed unchanged, so this row
 records a baseline rather than a change. Every row after it must name one setting, the
