@@ -472,24 +472,43 @@ request and is upgraded to precise coordinates if and when the browser answers. 
 path covers a denial and a browser with no geolocation API.
 
 **The third rung is now a control, not a silent default.** A location selector offers the
-ten best-covered markets alongside "use my location", because the corpus has gaps where
+best-covered markets alongside "use my location", because the corpus has gaps where
 nobody would look for them: **Chicago holds zero records** — nothing in the city, nothing
 in its market, nearest restaurant 116 km away in South Bend — and Boston (123 km),
 Atlanta (167 km) and Seattle (220 km) are the same. A demo driven only by the browser
 looks broken from any of those while behaving perfectly.
 
-**The selector carries a second group, nine neighbourhoods across three cities.** A market
-moves the position between cities, which cannot show the `geo` criterion reordering a result
-set that is already entirely local — every restaurant in it sits in the same market. Only a
-position *inside* a city can. Selected on the same criterion as the markets, corpus density,
-plus two the market list does not need: a real neighbourhood rather than the `city` fallback
-that covers 2,500 records, and a separation wider than the 5 km `aroundPrecision` bucket.
-That last one is the trap. Two anchors closer than the bucket are declared tied by `geo` and
-return an identical order — measured, Houston Downtown and Midtown / Montrose sit 2.3 km
-apart and shared 7 of their top 10 with the same first hit, so one of them was dropped.
-Every intra-city pair kept exceeds 5 km. `DEMO_NEIGHBOURHOODS` records which city
-demonstrates it best and how far each goes; it only applies to a query that classifies as a
-category, since a name query gets the coarse bucket and geo goes inert by design.
+**The selector is one flat list of neighbourhood anchors, and markets are gone from it.** A
+market centroid and one of its own neighbourhoods land in the same `aroundPrecision`
+bucket and return the same page, so offering both is two menu rows for one result set:
+measured, the New York pivot sits 1.2 km from Midtown West and shares 9 of its top 10 with
+the same first hit, Houston 2.8 km from Galleria / Uptown, 7 of 10. Neighbourhoods also do
+what markets cannot — a market moves the position between cities, which cannot show the
+`geo` criterion reordering a result set that is already entirely local, since every
+restaurant in it sits in the same market. Only a position *inside* a city can.
+
+**15 anchors across 9 cities.** Each is a real neighbourhood rather than the `city`
+fallback that covers 2,500 records, is backed by at least 10 records so the centroid stands
+for a district, and clears the 5 km bucket against every other anchor. That last one is the
+trap: two anchors inside one bucket are declared tied by `geo` and return an identical
+order. `assertSelectorSeparation` in `src/searchParams.js` fails at boot on any pair closer
+than the bucket; the tightest surviving pair is New York Midtown West / Harlem at 5.74 km.
+Houston Downtown and Midtown / Montrose were 2.3 km apart and shared 7 of their top 10 with
+the same first hit, so Midtown / Montrose was dropped, and `NE Portland` went the same way —
+it cleared the bucket by 100 m but shares 7 of 10 with Portland Downtown.
+
+**Two well-covered markets cannot be represented, which is a property of the data.**
+Phoenix / Scottsdale carries `neighborhood` equal to `city` on 239 of its 251 records and
+its largest real-neighbourhood group holds 3. Las Vegas has 45 neighbourhood values that
+are venues rather than districts — `Bellagio Hotel & Casino`, `Aria Hotel & Casino`, `The
+Venetian and Palazzo` — the largest holding 9 records, all within about 2 km of each other
+on the Strip, so they would collide in one bucket even at 10 records each. Both are absent
+from the selector.
+
+`DEMO_POSITIONS` records the sample size behind each anchor and which city demonstrates the
+reordering best. `DEFAULT_POSITION` is the third rung of the fallback chain, resolved by
+label rather than by list index so re-curating cannot silently move it, and asserted at
+boot.
 
 The record counts that justify curating the list are deliberately not shown: a number
 beside a city in a search interface reads as a result count, and it is not one. And when

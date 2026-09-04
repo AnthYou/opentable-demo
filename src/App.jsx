@@ -16,8 +16,7 @@ import { searchClient, indexName, sortOptions } from './searchClient.js';
 import {
   searchParams,
   geoParams,
-  DEMO_LOCATIONS,
-  DEMO_NEIGHBOURHOODS,
+  DEMO_POSITIONS,
   findDemoPosition,
 } from './searchParams.js';
 import { Hit } from './components/Hit.jsx';
@@ -69,36 +68,48 @@ function useGeoPosition() {
  * the same. A demo driven only by the browser's position looks broken from any of them
  * while behaving perfectly, so the position has to be selectable.
  *
- * "Use my location" is the default and keeps the browser-then-IP behaviour. The cities
- * are the ten best-covered markets. Their record counts are deliberately not shown:
- * `DEMO_LOCATIONS` carries `within25km` because it is what justifies curating the list,
- * but a number beside a city in a search UI reads as a result count, and it is not one.
+ * "Use my location" is the default and keeps the browser-then-IP behaviour. Everything
+ * below it is a neighbourhood, grouped under its city, because a market centroid and one of its
+ * own neighbourhoods land in the same `aroundPrecision` bucket and return the same page —
+ * two menu rows for one result set. Neighbourhoods also do something markets cannot:
+ * moving inside a city is the only way to watch proximity reorder a result set that is
+ * already entirely local.
  *
- * The second group is the same idea one zoom level down. Markets move you between cities;
- * neighbourhoods move you inside one, which is the only way to watch proximity reorder a
- * result set that is already entirely local. Selected on corpus density like the markets —
- * see `DEMO_NEIGHBOURHOODS` for the two extra constraints that list carries.
+ * Their record counts are deliberately not shown. `DEMO_POSITIONS` carries `records`
+ * because it is what justifies curating the list, but a number beside a place in a search
+ * UI reads as a result count, and it is not one. See `searchParams.js` for the three
+ * constraints every anchor meets and for the two markets the data cannot represent.
  */
+/**
+ * One group per city, in `DEMO_POSITIONS` order. Built once rather than per render, and
+ * derived from the list so the data stays the single source of truth — a new anchor
+ * appears under its city without touching this component.
+ */
+const POSITION_GROUPS = DEMO_POSITIONS.reduce((groups, position) => {
+  const current = groups.at(-1);
+  if (current?.city === position.city) current.positions.push(position);
+  else groups.push({ city: position.city, positions: [position] });
+  return groups;
+}, []);
+
 function LocationPicker({ value, onChange }) {
   return (
     <div className="location-picker">
       <label htmlFor="location">Near</label>
       <select id="location" value={value} onChange={(event) => onChange(event.target.value)}>
         <option value="">Use my location</option>
-        <optgroup label="Cities">
-          {DEMO_LOCATIONS.map((location) => (
-            <option key={location.label} value={location.label}>
-              {location.label}
-            </option>
-          ))}
-        </optgroup>
-        <optgroup label="Neighbourhoods">
-          {DEMO_NEIGHBOURHOODS.map((location) => (
-            <option key={location.label} value={location.label}>
-              {location.label}
-            </option>
-          ))}
-        </optgroup>
+        {POSITION_GROUPS.map((group) => (
+          <optgroup key={group.city} label={group.city}>
+            {group.positions.map((location) => (
+              // The option shows the neighbourhood alone; the city is already the group
+              // label. `value` stays the full label, which is what `findDemoPosition`
+              // resolves and what the banner names.
+              <option key={location.label} value={location.label}>
+                {location.neighborhood}
+              </option>
+            ))}
+          </optgroup>
+        ))}
       </select>
     </div>
   );

@@ -36,111 +36,110 @@
 export const PRECISION_METRES = 5000;
 
 /**
- * Positions the demo can be run from, and the only ones worth running it from.
+ * Every position the demo can be run from: one flat list of neighbourhood anchors.
  *
- * The corpus is a sparse national sample and the gaps are not where you would guess.
- * Measured: **Chicago has zero records** — nothing in the city, nothing in its market,
- * nearest restaurant 116 km away in South Bend. Boston (123 km), Atlanta (167 km) and
- * Seattle (220 km) are equally empty. A "near me" demo run from any of those looks
- * broken while behaving perfectly.
+ * Two problems are solved by the same list. The corpus is a sparse national sample with
+ * gaps where nobody would look for them — **Chicago holds zero records**, nothing in the
+ * city, nothing in its market, nearest restaurant 116 km away in South Bend, and Boston
+ * (123 km), Atlanta (167 km) and Seattle (220 km) are the same. A demo driven only by the
+ * browser looks broken from any of those while behaving perfectly. And a position between
+ * cities cannot show the `geo` criterion reordering a result set that is already entirely
+ * local; only a position *inside* a city can.
  *
- * So the position is a user choice, not only a browser reading. Each entry is a `market`
- * — the corpus's own navigation facet — with the centroid of its densest city as the
- * pivot, and the count of records within 25 km of that pivot. Ordered by coverage.
+ * So every entry is a real neighbourhood rather than a city or a market centroid. Three
+ * constraints, and the third is the one that is easy to get wrong:
  *
- * `within25km` is what justifies curating this list rather than generating it from all
- * 51 markets, and it is deliberately **not shown in the UI**: a number beside a city in
- * a search interface reads as a result count, which it is not.
+ * - **A real neighbourhood, never the `city` fallback.** `neighborhood` equals `city` on
+ *   2,500 records, so half the corpus has no neighbourhood at all. Those are excluded:
+ *   "Columbus, Columbus" is a missing value, not a neighbourhood.
+ * - **Enough records for the centroid to mean something.** Every anchor is backed by at
+ *   least 10, so it stands for a district rather than for one restaurant.
+ * - **Separated by more than the `aroundPrecision` bucket.** Two positions closer than
+ *   5 km fall into the *same* bucket, where `geo` declares them tied and the later
+ *   criteria return an identical order — a menu row that changes nothing.
+ *   `assertSelectorSeparation` below enforces it across all 105 pairs; the tightest is
+ *   New York Midtown West / Harlem at 5.74 km.
  *
- * Derived from `data/records.json`; re-derive if the transform changes. 21 of the 51
- * markets hold fewer than 20 records within 25 km of their pivot, which is why this list
- * is curated rather than generated from all of them.
- */
-export const DEMO_LOCATIONS = [
-  { label: 'New York', market: 'New York / Tri-State Area', lat: 40.7484, lng: -73.9854, within25km: 903 },
-  { label: 'San Diego', market: 'San Diego', lat: 32.763, lng: -117.1734, within25km: 211 },
-  { label: 'Houston', market: 'Houston', lat: 29.7578, lng: -95.443, within25km: 176 },
-  { label: 'Denver', market: 'Denver / Colorado', lat: 39.7343, lng: -104.9794, within25km: 175 },
-  { label: 'San Francisco', market: 'San Francisco Bay Area', lat: 37.7837, lng: -122.4211, within25km: 164 },
-  { label: 'Phoenix / Scottsdale', market: 'Phoenix / Arizona', lat: 33.5712, lng: -111.9183, within25km: 156 },
-  { label: 'Portland', market: 'Portland / Oregon', lat: 45.5231, lng: -122.6693, within25km: 147 },
-  { label: 'Indianapolis', market: 'Indiana', lat: 39.8155, lng: -86.1498, within25km: 87 },
-  { label: 'Las Vegas', market: 'Las Vegas', lat: 36.1226, lng: -115.1788, within25km: 87 },
-  { label: 'Nashville', market: 'Nashville', lat: 36.1503, lng: -86.7869, within25km: 86 },
-];
-
-/**
- * Neighbourhood positions.
+ * Two well-covered markets cannot be represented and are absent, which is a property of
+ * the data rather than a curation choice:
  *
- * A second zoom level on the markets above. Markets move you between cities; these move
- * you inside one, which is the only way to watch the `geo` criterion reorder a result set
- * that is already entirely local.
+ * - **Phoenix / Scottsdale.** 239 of the market's 251 records carry `neighborhood` equal
+ *   to `city`. Its largest real-neighbourhood group holds 3 records.
+ * - **Las Vegas.** Its 45 neighbourhood values are venues, not districts — `Bellagio
+ *   Hotel & Casino`, `Aria Hotel & Casino`, `The Venetian and Palazzo` — the largest
+ *   holds 9 records, and they all sit within about 2 km of each other on the Strip, so
+ *   they would collide in one bucket even at 10 records each.
  *
- * Three constraints, and the third is the one that is easy to get wrong:
+ * Portland is represented by Downtown alone. `NE Portland` qualified on record count and
+ * cleared the bucket by 100 m, but measured it shares 7 of 10 top hits with Downtown and
+ * the same first hit on `seafood`, which is the evidence that dropped Midtown / Montrose
+ * from an earlier version of this list.
  *
- * - **A real neighbourhood, never the city fallback.** `neighborhood` equals `city` on
- *   2,500 records (§3), so half the corpus has no neighbourhood at all. Those pairs are
- *   excluded: "Columbus, Columbus" is not a neighbourhood, it is a missing value.
- * - **Enough records for the centroid to mean something.** Every entry below is backed by
- *   at least 10, so the anchor is a district rather than one restaurant standing for one.
- * - **Separated by more than the bucket.** `aroundPrecision` is 5 km, and two positions
- *   closer than that fall into the *same* bucket, where `geo` declares
- *   them tied and the later criteria return an identical order. Measured the wrong way
- *   round first: Houston Downtown and Midtown / Montrose sit 2.3 km apart and shared 7 of
- *   their top 10 with the same first hit, so Midtown / Montrose was dropped. Every
- *   intra-city pair kept below exceeds 5 km — Houston's minimum is 9.5 km, San Antonio's
- *   6.8, New York's 5.7.
- *
- * What that buys, measured:
+ * What the list buys, measured on a category query:
  *
  * - **San Antonio is the clearest.** On `mexican` all three anchors return a *different*
  *   first hit, each one in the selected neighbourhood — La Fonda on Main downtown, Paloma
  *   Blanca in Alamo Heights, Pericos in North San Antonio — while 9 of the top 10 are the
- *   same restaurants throughout. Same results, different order, which is precisely what a
- *   ranking criterion does and what a filter does not.
+ *   same restaurants throughout. Same results, different order, which is what a ranking
+ *   criterion does and a filter does not.
  * - **Houston is the most dramatic.** On `italian`, Downtown and West Side share **0 of
  *   their top 10**: far enough apart that the pages have nothing in common.
  * - **New York is the weakest of the three** and worth knowing before demoing it: two
- *   distinct first hits out of three anchors, because Manhattan is small relative to a
- *   5 km bucket.
+ *   distinct first hits from three anchors, because Manhattan is small against a 5 km
+ *   bucket.
  *
- * `records` is the sample size behind each centroid, and like `within25km` above it is
- * deliberately not shown in the UI, for the same reason — a number beside a place in a
- * search interface reads as a result count.
+ * `records` is the sample size behind each centroid. Like the market counts this list
+ * replaces, it is deliberately not shown in the UI — a number beside a place in a search
+ * interface reads as a result count, and it is not one.
  *
- * These reorder any query whose records tie on `exact`, which is every category query and
- * every partial name. A single-word query equal to a whole attribute value wins on `exact`
- * before `geo` is consulted, so moving the anchor leaves it at rank 1.
- *
- * Derived from `data/records.json`; re-derive if the transform changes.
+ * Grouped by city and kept that way: the selector renders one `optgroup` per city in
+ * array order, so entries for one city must stay adjacent. Cities are ordered by their
+ * total records, anchors within a city by their own. Derived from `data/records.json`;
+ * re-derive if the transform changes.
  */
-export const DEMO_NEIGHBOURHOODS = [
+export const DEMO_POSITIONS = [
+  // New York — 107 records across three anchors
   { label: 'New York — Midtown West', city: 'New York', neighborhood: 'Midtown West', lat: 40.75879, lng: -73.98397, records: 80 },
-  { label: 'New York — Harlem', city: 'New York', neighborhood: 'Harlem', lat: 40.80398, lng: -73.95101, records: 13 },
   { label: 'New York — Financial District', city: 'New York', neighborhood: 'Financial District', lat: 40.70633, lng: -74.00846, records: 14 },
-  { label: 'Houston — Downtown', city: 'Houston', neighborhood: 'Downtown', lat: 29.75775, lng: -95.36978, records: 31 },
+  { label: 'New York — Harlem', city: 'New York', neighborhood: 'Harlem', lat: 40.80398, lng: -73.95101, records: 13 },
+  // Houston — 101
   { label: 'Houston — Galleria / Uptown', city: 'Houston', neighborhood: 'Galleria / Uptown', lat: 29.74477, lng: -95.4673, records: 44 },
+  { label: 'Houston — Downtown', city: 'Houston', neighborhood: 'Downtown', lat: 29.75775, lng: -95.36978, records: 31 },
   { label: 'Houston — West Side', city: 'Houston', neighborhood: 'West Side', lat: 29.77495, lng: -95.56667, records: 26 },
+  // Denver — 70
+  { label: 'Denver — Downtown / LoDo', city: 'Denver', neighborhood: 'Downtown / LoDo', lat: 39.74831, lng: -104.99666, records: 70 },
+  // San Diego — 64
+  { label: 'San Diego — Downtown / Gaslamp', city: 'San Diego', neighborhood: 'Downtown / Gaslamp', lat: 32.71295, lng: -117.16381, records: 64 },
+  // San Antonio — 58
   { label: 'San Antonio — Downtown', city: 'San Antonio', neighborhood: 'Downtown', lat: 29.42934, lng: -98.48837, records: 34 },
-  { label: 'San Antonio — Alamo Heights', city: 'San Antonio', neighborhood: 'Alamo Heights', lat: 29.4887, lng: -98.47029, records: 10 },
   { label: 'San Antonio — North San Antonio', city: 'San Antonio', neighborhood: 'North San Antonio', lat: 29.58191, lng: -98.52614, records: 14 },
+  { label: 'San Antonio — Alamo Heights', city: 'San Antonio', neighborhood: 'Alamo Heights', lat: 29.4887, lng: -98.47029, records: 10 },
+  // Indianapolis — 43
+  { label: 'Indianapolis — Downtown Indy', city: 'Indianapolis', neighborhood: 'Downtown Indy', lat: 39.79216, lng: -86.15169, records: 43 },
+  // Portland — 37
+  { label: 'Portland — Downtown', city: 'Portland', neighborhood: 'Downtown', lat: 45.51821, lng: -122.67944, records: 37 },
+  // San Francisco — 16
+  { label: 'San Francisco — SOMA', city: 'San Francisco', neighborhood: 'SOMA', lat: 37.78356, lng: -122.39851, records: 16 },
+  // Nashville — 15
+  { label: 'Nashville — West End', city: 'Nashville', neighborhood: 'West End', lat: 36.14795, lng: -86.80255, records: 15 },
 ];
 
-/**
- * Resolves a selector label to a position. One lookup rather than two searches in the
- * caller, so adding a third group later cannot leave `App.jsx` silently missing it.
- */
+
+/** Resolves a selector label to a position. */
 export function findDemoPosition(label) {
   if (!label) return null;
-  return (
-    DEMO_LOCATIONS.find((l) => l.label === label) ??
-    DEMO_NEIGHBOURHOODS.find((l) => l.label === label) ??
-    null
-  );
+  return DEMO_POSITIONS.find((l) => l.label === label) ?? null;
 }
 
-export const DEFAULT_METRO = DEMO_LOCATIONS[0];
-
+/**
+ * The third rung of the geo fallback chain: the position used when the browser has no
+ * location and the IP lookup is unavailable.
+ *
+ * Midtown West, the densest anchor in the corpus at 80 records. Resolved by label rather
+ * than by index so reordering the list cannot silently move the fallback, and asserted
+ * below so a rename fails at boot instead of leaving `geoParams` with no third rung.
+ */
+export const DEFAULT_POSITION = DEMO_POSITIONS.find((p) => p.label === 'New York — Midtown West');
 /**
  * The half both journeys share: everything except `aroundPrecision`.
  *
@@ -237,7 +236,7 @@ export const searchParams = {
  * @param {{lat: number, lng: number} | null} position Browser geolocation, or null when
  *   it was denied, unavailable or still pending.
  * @param {{ipFallback?: boolean}} [options] Set `ipFallback: false` to skip straight to
- *   the default metro — for the case where the IP lookup returned nothing usable.
+ *   the default position — for the case where the IP lookup returned nothing usable.
  */
 export function geoParams(position, options = {}) {
   const { ipFallback = true } = options;
@@ -262,9 +261,9 @@ export function geoParams(position, options = {}) {
   }
 
   return {
-    source: 'default-metro',
-    label: DEFAULT_METRO.label,
-    params: { aroundLatLng: `${DEFAULT_METRO.lat},${DEFAULT_METRO.lng}`, aroundRadius: 'all' },
+    source: 'default-position',
+    label: DEFAULT_POSITION.label,
+    params: { aroundLatLng: `${DEFAULT_POSITION.lat},${DEFAULT_POSITION.lng}`, aroundRadius: 'all' },
   };
 }
 
@@ -274,6 +273,45 @@ export function geoParams(position, options = {}) {
  * measured identical to sending no geo; a value that large means the demo has quietly
  * stopped being location-aware.
  */
+/**
+ * No two selector entries may fall inside the same distance bucket. Two positions closer
+ * than `PRECISION_METRES` are declared tied by `geo`, so they return the same order and
+ * the menu offers the user a choice that changes nothing. The closest surviving pair is
+ * New York Midtown West / Harlem at 5.7 km.
+ */
+function assertSelectorSeparation() {
+  const R = 6371000;
+  const rad = (deg) => (deg * Math.PI) / 180;
+  const metres = (a, b) => {
+    const h =
+      Math.sin(rad(b.lat - a.lat) / 2) ** 2 +
+      Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(rad(b.lng - a.lng) / 2) ** 2;
+    return 2 * R * Math.asin(Math.sqrt(h));
+  };
+  const all = DEMO_POSITIONS;
+  if (!DEFAULT_POSITION) {
+    throw new Error(
+      'DEFAULT_POSITION did not resolve: no entry in DEMO_POSITIONS is labelled "New York — Midtown West". ' +
+        'The geo fallback chain has no third rung, so a visitor with no browser location and no usable IP lookup gets no ' +
+        'position at all. Point it at another anchor rather than leaving it undefined.'
+    );
+  }
+  for (let i = 0; i < all.length; i += 1) {
+    for (let j = i + 1; j < all.length; j += 1) {
+      const d = metres(all[i], all[j]);
+      if (d <= PRECISION_METRES) {
+        throw new Error(
+          `Location selector entries "${all[i].label}" and "${all[j].label}" are ${Math.round(d)} m apart, inside the ` +
+            `${PRECISION_METRES} m aroundPrecision bucket. Two positions in one bucket are tied by the geo criterion and ` +
+            'return the same order, so the menu would offer a choice that changes nothing. Remove one or move it further out.'
+        );
+      }
+    }
+  }
+}
+
+assertSelectorSeparation();
+
 if (!(PRECISION_METRES > 0) || PRECISION_METRES >= 10000000) {
   throw new Error(
     `PRECISION_METRES is ${PRECISION_METRES} m. Below 1 it is not a bucket; at or above 10,000,000 m the whole corpus ` +
