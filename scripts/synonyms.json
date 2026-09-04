@@ -1,26 +1,42 @@
-[
-  {
-    "objectID": "plural-breweries",
-    "type": "oneWaySynonym",
-    "input": "breweries",
-    "synonyms": ["brewery"]
+{
+  "_about": {
+    "purpose": "Versioned Algolia synonyms, pushed by scripts/2-index.js. Never edited in the dashboard, for the same reason settings and rules are not: the configuration is part of the codebase, it gets reviewed in diffs, and a dashboard-only change is a change nobody can trace (CLAUDE.md §5).",
+    "contract_for_2-index.js": [
+      "Push `synonyms` verbatim as the saveSynonyms payload, with replaceExistingSynonyms true so this file is the whole synonym set rather than an addition to whatever the dashboard holds.",
+      "Keys prefixed with `_` are documentation and must never be sent to Algolia.",
+      "Each synonym needs a stable, human-readable objectID. Algolia's synonym schema has no `description` field the way a rule does, so the id and this file are the only places the reasoning can live.",
+      "The file is optional. 2-index.js runs without it; it aborts on a file that exists but carries no `synonyms` array."
+    ]
   },
-  {
-    "objectID": "plural-wineries",
-    "type": "oneWaySynonym",
-    "input": "wineries",
-    "synonyms": ["winery"]
+  "_rationale": {
+    "the_ies_plurals": "Four entries, all the same shape, all the same cause. `-y` to `-ies` puts the plural three edits from the corpus form — `wineries` against `winery` — past `minWordSizefor2Typos: 8`, so no typo threshold reaches them and three of the four returned zero results. Measured on the live index: `breweries` 0 to 9 hits, `wineries` 0 to 10, `eateries` 0 to 11, `bakeries` 1 to 3. Every other plural in the corpus vocabulary is already covered without a synonym, either by typo tolerance on a trailing `s` or by the `category-query-*` rules, whose `alternatives: true` makes `steakhouses` behave as `steakhouse`. See the test-queries.md change log.",
+    "one_way_not_two": "`oneWaySynonym` rather than a two-way pair, because the plural appears nowhere in the extract: `brewery` 8 times in a name plus 3 as a `cuisine_tag`, `winery` 10, `eatery` 11, `bakery` 2, and `breweries`, `wineries`, `eateries`, `bakeries` 0 times in any attribute. A two-way synonym would additionally declare that a singular query should reach the plural, which matches nothing and states something untrue of the data. Verified after the push: the four singular queries are byte-identical with synonyms on and off, so the direction does not leak.",
+    "k12_deliberately_absent": "`pappas brothers` gets no entry, though this file was long described as owed to it. That prediction was refuted on 2026-09-03: the query returns Pappas Bros. Steakhouse at rank 1 through `removeWordsIfNoResults`, which drops the unmatched last word, and test-queries.md K12 has carried a `pass` since. The 66 records with a period abbreviation — `Bros.`, `St.`, `Mt.`, in data/exploration.md A1.4 — may still deserve synonyms, but CLAUDE.md §8 forbids adding one before a case demands it."
   },
-  {
-    "objectID": "plural-eateries",
-    "type": "oneWaySynonym",
-    "input": "eateries",
-    "synonyms": ["eatery"]
-  },
-  {
-    "objectID": "plural-bakeries",
-    "type": "oneWaySynonym",
-    "input": "bakeries",
-    "synonyms": ["bakery"]
-  }
-]
+  "synonyms": [
+    {
+      "objectID": "plural-breweries",
+      "type": "oneWaySynonym",
+      "input": "breweries",
+      "synonyms": ["brewery"]
+    },
+    {
+      "objectID": "plural-wineries",
+      "type": "oneWaySynonym",
+      "input": "wineries",
+      "synonyms": ["winery"]
+    },
+    {
+      "objectID": "plural-eateries",
+      "type": "oneWaySynonym",
+      "input": "eateries",
+      "synonyms": ["eatery"]
+    },
+    {
+      "objectID": "plural-bakeries",
+      "type": "oneWaySynonym",
+      "input": "bakeries",
+      "synonyms": ["bakery"]
+    }
+  ]
+}

@@ -186,12 +186,33 @@ if (!fs.existsSync(RULES)) fail(`${path.relative(ROOT, RULES)} is missing. It ca
   });
 }
 
+/**
+ * Synonyms. Optional, unlike rules: the file may legitimately not exist, and the discovery
+ * journey does not depend on it.
+ *
+ * Same shape as rules.json — `{ _about, synonyms }` rather than a bare array — so a
+ * synonym can carry its justification next to it. Algolia's synonym schema has no
+ * `description` field the way a rule does, so the object wrapper is the only place that
+ * reasoning can live and still be reviewed in a diff.
+ */
 let synonyms = null;
 if (fs.existsSync(SYNONYMS)) {
-  synonyms = JSON.parse(fs.readFileSync(SYNONYMS, 'utf8'));
-  if (!Array.isArray(synonyms)) fail('synonyms.json must be an array of synonym objects');
-  const badSyn = synonyms.findIndex((s) => !s.objectID || !s.type);
-  if (badSyn !== -1) fail(`synonym at position ${badSyn} is missing objectID or type`);
+  const synonymsFile = JSON.parse(fs.readFileSync(SYNONYMS, 'utf8'));
+  if (Array.isArray(synonymsFile)) {
+    fail(
+      `${path.relative(ROOT, SYNONYMS)} is a bare array. It must be an object carrying a \`synonyms\` array, ` +
+        'like rules.json, so the file has somewhere to state why each entry exists.'
+    );
+  }
+  synonyms = synonymsFile.synonyms;
+  if (!Array.isArray(synonyms) || synonyms.length === 0) {
+    fail(`${path.relative(ROOT, SYNONYMS)} must carry a non-empty \`synonyms\` array. Delete the file instead of emptying it.`);
+  }
+  synonyms.forEach((s, i) => {
+    if (!s.objectID) fail(`synonym at position ${i} has no objectID. Stable ids are what make a synonym reviewable in a diff.`);
+    if (!s.type) fail(`synonym ${s.objectID} has no type`);
+    if (/^\d+$/.test(s.objectID)) fail(`synonym ${s.objectID} carries a dashboard-generated id. Rename it to something a diff can explain.`);
+  });
 }
 
 // ---------------------------------------------------------------- plan
