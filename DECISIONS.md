@@ -545,6 +545,22 @@ the overlay so a booking stays its own target.
 appears, and a disclaimer on every row is noise; it appears on the curated entry points and
 its facet, each carrying the note once.
 
+### The geo banner claimed an exactness guarantee the ranking does not give
+
+**Removed 2026-09-04.** The banner read *"Nearest to {label} first, best rated within each
+area. An exact name match ranks first wherever it is."* The second sentence was false.
+`geo` sits at position 2 of `ranking`, above `words`, `attribute` and `exact`, so the
+proximity bucket decides before the `exact` criterion is consulted. Measured from Denver:
+`prime` puts 117067 `Prime` at rank 14 of 49 behind `Ocean Prime - Denver`, `rye` puts
+105424 at rank 3 of 7, `union` puts 116815 at rank 25 of 42, and `bistro` puts 100624 at
+rank 198 of 208. `test-queries.md` A1, A2 and A6 are `accepted` rather than `pass` for
+exactly this reason.
+
+The banner renders on every query, so the false sentence was permanently on screen. The
+clause was deleted rather than rewritten: UI copy does not have to teach the order of the
+ranking criteria, and any reformulation reopens the same surface for error. The banner now
+reads *"Nearest to {label} first, best rated within each area."*
+
 ### Insights
 
 `clickedObjectIDsAfterSearch` named `Restaurant Clicked` and

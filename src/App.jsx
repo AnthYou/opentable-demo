@@ -123,7 +123,7 @@ function LocationPicker({ value, onChange }) {
  * approximate location" alone does not explain *why* it is approximate.
  */
 function GeoBanner({ status, source, label, waiting }) {
-  const ranking = `Nearest to ${label} first, best rated within each area. An exact name match ranks first wherever it is.`;
+  const ranking = `Nearest to ${label} first, best rated within each area.`;
 
   const explanation =
     source === 'ip'
