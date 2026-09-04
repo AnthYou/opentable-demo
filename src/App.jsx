@@ -161,7 +161,7 @@ const OCCASION_ENTRY_POINTS = [
   { value: 'date night', hint: 'Fine dining and elegant rooms' },
   { value: 'business lunch', hint: 'Steakhouses and quiet tables' },
   { value: 'family friendly', hint: 'Casual, entry price tier' },
-  { value: 'special occasion', hint: 'The top price tier' },
+  { value: 'special occasion', hint: 'Fine dining, or the top price tier' },
   { value: 'group dinner', hint: 'Shareable and communal' },
 ];
 

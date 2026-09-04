@@ -545,6 +545,29 @@ the overlay so a booking stays its own target.
 appears, and a disclaimer on every row is noise; it appears on the curated entry points and
 its facet, each carrying the note once.
 
+### The Special Occasion card described the minority branch of its own rule
+
+**Corrected 2026-09-04.** The card's hint read *"The top price tier"*. The rule in
+`scripts/1-transform.js` is `dining_style === 'Fine Dining'` **or** `price_tier === 3`,
+and the omitted branch is the larger one. Counted on `data/records.json`: 770 records carry
+`special occasion`, 308 of them have `price_tier === 3`, and **462 qualify through Fine
+Dining at a price tier below 3**. The hint therefore described 40% of the bucket and
+excluded the 60% that reaches it the other way. No record carries the occasion without
+matching one of the two branches, and 179 match both.
+
+Now reads *"Fine dining, or the top price tier"*.
+
+The other four hints were checked against their rules on the same data. Two are accurate:
+`family friendly` — *"Casual, entry price tier"* — covers both branches exactly (1,841
+Casual Dining and 17 Home Style, all at tier 1, none above it), and `group dinner` —
+*"Shareable and communal"* — restates the rule's own basis (1,592 through the six
+shareable cuisines, 42 through the Tapas tag alone). Two are vague and were left alone
+because nothing in them is false: `date night` — *"Fine dining and elegant rooms"* — names
+both branches (641 Fine Dining, 998 Casual Elegant) without the price qualifier that
+excludes 1,132 Casual Elegant records at the entry tier, and `business lunch` —
+*"Steakhouses and quiet tables"* — gestures at its second branch (486 steakhouses, 1,141
+others) impressionistically. Copy that is imprecise but true was not rewritten.
+
 ### The geo banner claimed an exactness guarantee the ranking does not give
 
 **Removed 2026-09-04.** The banner read *"Nearest to {label} first, best rated within each
