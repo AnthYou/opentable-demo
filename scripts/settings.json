@@ -9,10 +9,7 @@
       "`_geoloc` needs no declaration — Algolia indexes it for geo search automatically."
     ],
     "not_implementable_as_specified": {
-      "distance_replica": "CLAUDE.md §5 lists a `distance` virtual replica. A replica cannot sort by distance: a replica's order comes from stored attributes, and distance depends on the user's position at query time. Nothing to store, nothing to pre-sort. Distance ordering is produced instead by sending `aroundLatLng` to the primary index, where the `geo` ranking criterion applies — which is exactly what the discovery parameter set does. The sort control therefore offers the primary index as its geo-aware default plus the three replicas below, and no `distance` replica is created. Note this rules out sorting by a stored distance, NOT a standard replica whose `ranking` places `geo` first — that is implementable and is one of the two candidate fixes for test-queries.md G3."
-    },
-    "missing_from_the_repo_layout": {
-      "synonyms": "Persona 1 requires 'synonyms and alternative spellings' (CLAUDE.md §2), and test-queries.md K12 `pappas brothers` cannot pass without one — the edit distance from `Bros.` to `brothers` is 3, beyond any typo setting. Synonyms are a separate Algolia resource, not an index setting, so they do not belong in this file and CLAUDE.md §6 lists no file for them. They need `scripts/synonyms.json`, pushed by 2-index.js alongside these settings, for the same reason settings live in the repo: a dashboard-only synonym is untraceable."
+      "distance_replica": "CLAUDE.md §5 lists a `distance` virtual replica. A replica cannot sort by distance: a replica's order comes from stored attributes, and distance depends on the user's position at query time. Nothing to store, nothing to pre-sort. Distance ordering is produced instead by sending `aroundLatLng` to the primary index, where the `geo` ranking criterion applies — which is exactly what the discovery parameter set does. The sort control therefore offers the primary index as its geo-aware default plus the `rating_desc` replica below, and no `distance` replica is created. Note this rules out sorting by a stored distance, NOT a standard replica whose `ranking` places `geo` first — that is implementable and is one of the two candidate fixes for test-queries.md G3."
     }
   },
   "_rationale": {

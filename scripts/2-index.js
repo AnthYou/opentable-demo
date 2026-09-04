@@ -211,7 +211,7 @@ console.log(`index     ${indexName}`);
 console.log(`write key ${mask(writeKey)}`);
 console.log(`records   ${records.length} from ${path.relative(ROOT, RECORDS)}`);
 console.log(`rules     ${rules.length} from ${path.relative(ROOT, RULES)}`);
-console.log(`synonyms  ${synonyms ? `${synonyms.length} from ${path.relative(ROOT, SYNONYMS)}` : 'none — scripts/synonyms.json absent, so test-queries.md K12 `pappas brothers` cannot pass yet'}`);
+console.log(`synonyms  ${synonyms ? `${synonyms.length} from ${path.relative(ROOT, SYNONYMS)}` : 'none — scripts/synonyms.json absent'}`);
 console.log(`\nplan (${plan.length} operation${plan.length === 1 ? '' : 's'}):`);
 plan.forEach((p, i) => console.log(`  ${i + 1}. ${p}`));
 

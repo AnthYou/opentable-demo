@@ -1,0 +1,26 @@
+[
+  {
+    "objectID": "plural-breweries",
+    "type": "oneWaySynonym",
+    "input": "breweries",
+    "synonyms": ["brewery"]
+  },
+  {
+    "objectID": "plural-wineries",
+    "type": "oneWaySynonym",
+    "input": "wineries",
+    "synonyms": ["winery"]
+  },
+  {
+    "objectID": "plural-eateries",
+    "type": "oneWaySynonym",
+    "input": "eateries",
+    "synonyms": ["eatery"]
+  },
+  {
+    "objectID": "plural-bakeries",
+    "type": "oneWaySynonym",
+    "input": "bakeries",
+    "synonyms": ["bakery"]
+  }
+]
