@@ -5,13 +5,16 @@
  * position with `aroundRadius: "all"` and `aroundPrecision: 5 km`, so proximity orders
  * the results and `popularity_score` breaks ties inside each bucket.
  *
- * Proximity leading does not cost the known-item journey anything, because `exact` sits
- * above `geo` in the index `ranking`. A single-word query equal to a whole attribute
- * value wins on `exact` whatever its distance — 117067 `Prime` at 1,062 km still ranks
- * above `Ocean Prime - Denver` at 2 km. Records that tie on `exact`, which is every
- * member of a chain, are then ordered by distance. That is the disambiguation persona 1
- * asked for: `cyclone` from Houston returns the five Cyclone Anaya's at 2, 2, 3, 4 and
- * 7 mi, and `pappas bros` from Dallas puts Dallas above Houston.
+ * Proximity leads deliberately. `geo` sits second in the index `ranking`, above `words`,
+ * `attribute` and `exact`, because proximity is the dominant intent signal for a diner
+ * choosing somewhere to eat: `cyclone` from Houston returns the five Cyclone Anaya's at
+ * 2, 2, 3, 4 and 7 mi, and `pappas bros` from Dallas puts Dallas above Houston.
+ *
+ * It costs the exact-name cases, and that cost is accepted rather than hidden. From
+ * Denver, 117067 `Prime` sits at rank 14 of 49 behind `Ocean Prime - Denver`, and
+ * test-queries.md A1, A2 and A6 are `accepted` on the use case: someone who wants a
+ * restaurant in another city names that city, and ten city-qualified queries each return
+ * exactly one hit at rank 1. See DECISIONS.md §2 before reordering `ranking`.
  *
  * `aroundRadius` stays `"all"` so a result is never lost to distance. The corpus is a
  * sparse national sample — 5,000 restaurants across 916 cities — and a bounded radius
@@ -23,7 +26,7 @@
  * retrieved for.
  *
  * Earlier designs — two parameter sets switched by a name-versus-category heuristic, and
- * geo gated on the query being empty — are recorded in DECISIONS.md.
+ * geo gated on the query being empty — are recorded in DECISIONS.md §4.
  */
 
 /**

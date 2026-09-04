@@ -66,10 +66,20 @@ beginning with their `chain_name`, so it reached nothing new while handing every
 a whole-attribute exact match that cancelled the real name match. `address` added noise:
 `kaya` returned 27 Waikiki restaurants on Kalakaua Avenue among 67 hits, 40 without it.
 
-**Geo is always sent, and `aroundPrecision` is the dial.** A category query gets a 5 km
-bucket, so proximity orders the results and `popularity_score` breaks ties inside each
-bucket. A name-like query gets 20,000 km, where the ranking is byte-identical to sending no
-geo, so `Ocean Prime - Denver` (2 km) cannot displace `Prime` (1,062 km).
+**Geo is always sent, at a 5 km `aroundPrecision` bucket, on every query.** `aroundRadius`
+stays unbounded because a bounded radius returns nothing for most positions in a sparse
+national sample, and the 5 km bucket is coarse enough that `popularity_score` breaks ties
+inside it. `geo` sits second in `ranking`, above `words`, `attribute` and `exact`, which is
+a decision about the use case: proximity is the dominant intent signal for a diner choosing
+somewhere to eat, and someone wanting a restaurant in another city names that city — ten
+city-qualified queries each return exactly one hit at rank 1. The cost is that an exact name
+can lose to a nearer partial match, recorded on three accepted cases.
+
+**Three query rules turn a category-shaped query into a filtered browse.** A query equal to
+a value of `cuisine`, `dining_style` or `occasions` has its words removed and the value
+applied as a facet filter, so ordering falls to proximity then rating. `dining_style` and
+`occasions` are not searchable attributes, so those queries were failing outright before —
+`casual elegant` returned 0 hits against 2,130 records, `date night` 6 against 1,639.
 
 **`popularity_score` is a Bayesian average over `stars_count`, `m = 50`.** 21 records hold a
 5.0 and 18 of those have under 50 reviews; the prior puts `Ellen's Cafe` (5.0, one review) at
@@ -141,15 +151,17 @@ bundle. `node scripts/2-index.js --dry-run` validates without touching the netwo
 
 | Path | What it is |
 |---|---|
-| [`CLAUDE.md`](CLAUDE.md) | Working context: personas, data profile, schema, index configuration, constraints |
+| [`CLAUDE.md`](CLAUDE.md) | Working context: the rules in force — personas, data profile, schema, index configuration, constraints |
+| [`DECISIONS.md`](DECISIONS.md) | How those rules were reached: measurements, reversals, and what was tried and rejected |
 | [`test-queries.md`](test-queries.md) | 52 relevance cases, their verdicts, and the settings change log |
 | [`data/exploration.md`](data/exploration.md) | Full profiling record with every objectID |
 | [`data/transform-report.md`](data/transform-report.md) | Counts, conflicts resolved, cuisine mapping applied |
 | `scripts/1-transform.js` | Join, normalise, enrich. Deterministic, never talks to Algolia |
 | `scripts/2-index.js` | Push records, settings and replicas. Never transforms data |
 | `scripts/settings.json` | Versioned index configuration, one justification per setting |
+| `scripts/rules.json` | Versioned query rules, with the counts behind each |
 | `scripts/cuisine-taxonomy.json` | Hand-reviewed `food_type` mapping, 52 review notes |
-| `src/searchParams.js` | The two parameter sets and the geo rule, with a boot-time assertion |
+| `src/searchParams.js` | The search parameters, the geo fallback chain and the selector anchors, with boot-time assertions |
 | `src/insights.js` | queryID propagation, click and conversion events |
 
 Index configuration lives in the repo and is pushed by script, never edited in the
