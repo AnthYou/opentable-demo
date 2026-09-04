@@ -204,11 +204,23 @@ radius stays unbounded because a bounded one returns nothing for most positions 
 national sample. The 5 km bucket is coarse enough that `popularity_score` breaks ties
 inside it. Distance display is independent of ranking, computed client-side from `_geoloc`.
 
-**Never leave the user geo-blocked.** The chain is browser position →
-`aroundLatLngViaIP` → `DEFAULT_POSITION`, and the UI states which rung is in use. The IP
-rung covers a denial, a browser with no geolocation API, **and the period while the
-permission dialog is open** — the dialog has no timeout the app controls, so waiting would
-send the first request with no geo.
+**Never leave the user geo-blocked.** The automatic chain has two rungs: browser position,
+then `aroundLatLngViaIP`. The UI states which one is in use. The IP rung covers a denial, a
+browser with no geolocation API, **and the period while the permission dialog is open** —
+the dialog has no timeout the app controls, so waiting would send the first request with no
+geo.
+
+There is no automatic third rung, and there cannot be one client-side. `aroundLatLngViaIP`
+is resolved server-side and the resolved position is never returned to the client, so the
+front end cannot detect that the IP lookup failed and fall through to a default.
+`geoParams` can return `DEFAULT_POSITION` when called with `{ ipFallback: false }`, and the
+app never calls it that way. The third path is the location selector, which is an explicit
+user choice rather than a fallback.
+
+**Under the IP rung the card shows no distance.** `userPosition` is `null` on the client,
+so `formatPlace` in `src/lib/format.js` omits the distance and falls back to `address` on
+the records flagged `location_label_ambiguous`. Distance appears only when the browser
+grants geolocation or the user picks an anchor.
 
 **The location selector is 15 neighbourhood anchors across 9 cities**, grouped by city,
 alongside "use my location". Anchors rather than markets, because a market centroid and one

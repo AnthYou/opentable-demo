@@ -135,12 +135,17 @@ export function findDemoPosition(label) {
 }
 
 /**
- * The third rung of the geo fallback chain: the position used when the browser has no
- * location and the IP lookup is unavailable.
+ * A default position, reachable only through `geoParams(position, { ipFallback: false })`.
+ *
+ * **The app never calls it that way**, so this is unused by the front end. It cannot be
+ * wired up client-side: `aroundLatLngViaIP` is resolved server-side and the resolved
+ * position is never returned, so the client cannot detect that the IP lookup failed and
+ * fall through. The user-facing third path is the location selector. Kept for a caller
+ * that wants a position without asking, and for tests.
  *
  * Midtown West, the densest anchor in the corpus at 80 records. Resolved by label rather
- * than by index so reordering the list cannot silently move the fallback, and asserted
- * below so a rename fails at boot instead of leaving `geoParams` with no third rung.
+ * than by index so reordering the list cannot silently move it, and asserted below so a
+ * rename fails at boot instead of leaving this undefined.
  */
 export const DEFAULT_POSITION = DEMO_POSITIONS.find((p) => p.label === 'New York — Midtown West');
 /**
@@ -239,7 +244,8 @@ export const searchParams = {
  * @param {{lat: number, lng: number} | null} position Browser geolocation, or null when
  *   it was denied, unavailable or still pending.
  * @param {{ipFallback?: boolean}} [options] Set `ipFallback: false` to skip straight to
- *   the default position — for the case where the IP lookup returned nothing usable.
+ *   `DEFAULT_POSITION`. **Unused by the app** — see the note on `DEFAULT_POSITION`: the
+ *   client cannot tell that an IP lookup failed, so nothing can decide to pass this.
  */
 export function geoParams(position, options = {}) {
   const { ipFallback = true } = options;
@@ -295,8 +301,8 @@ function assertSelectorSeparation() {
   if (!DEFAULT_POSITION) {
     throw new Error(
       'DEFAULT_POSITION did not resolve: no entry in DEMO_POSITIONS is labelled "New York — Midtown West". ' +
-        'The geo fallback chain has no third rung, so a visitor with no browser location and no usable IP lookup gets no ' +
-        'position at all. Point it at another anchor rather than leaving it undefined.'
+        'The app does not read it, but a caller passing { ipFallback: false } would get an undefined position rather ' +
+        'than coordinates. Point it at another anchor rather than leaving it undefined.'
     );
   }
   for (let i = 0; i < all.length; i += 1) {
