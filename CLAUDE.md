@@ -29,8 +29,10 @@ partial names and alternate spellings return poor results; chains with several l
 in the same city are impossible to tell apart.
 
 Requirements: name-first relevance, typo tolerance, visible disambiguation of locations.
-Alternative spellings are served by typo tolerance and glyph folding;
-`scripts/synonyms.json` does not exist and no test demands it.
+Alternative spellings are served by typo tolerance and glyph folding. `scripts/synonyms.json`
+carries four entries and no more — the `-y`/`-ies` plurals of `test-queries.md` D7, which no
+typo threshold can reach. It is not the remedy for abbreviations: K12 `pappas brothers`
+already passes without one.
 
 **Persona 2 — open-ended discovery.** No specific restaurant in mind. Reported pains: few
 ways to browse, refine or get inspired; it feels dated next to other consumer platforms.
@@ -132,10 +134,12 @@ If unrecognisable restaurants surface, `m` is too low.
 
 ## 5. Index configuration
 
-`scripts/settings.json` and `scripts/rules.json` live in the repo and are pushed by
-`scripts/2-index.js`. Neither is edited in the dashboard: a dashboard-only change is a
-change nobody can review in a diff. Rules are pushed with `clearExistingRules`, so the
-file is the whole rule set.
+`scripts/settings.json`, `scripts/rules.json` and `scripts/synonyms.json` live in the repo
+and are pushed by `scripts/2-index.js`. None is edited in the dashboard: a dashboard-only
+change is a change nobody can review in a diff. Rules are pushed with `clearExistingRules`
+and synonyms with `replaceExistingSynonyms`, so each file is the whole set. Synonyms are
+optional and the other two are not; all three carry their justification in-file under
+`_about` and `_rationale`, keys the script never sends to Algolia.
 
 ```
 searchableAttributes: [
@@ -202,7 +206,7 @@ via the `{facet:<attribute>}` placeholder covers 48 values. `dining_style` and `
 are absent from `searchableAttributes`, so those queries need a rule to work at all;
 `cuisine_tags` deliberately has none. `anchoring: is` means no rule fires unless the whole
 query equals a facet value, so name queries are untouched — and so is
-`italian restaurant`, the query-categorisation gap in section 9.
+`italian restaurant`. Multi-word category queries stay open.
 
 ### Geo
 
@@ -256,10 +260,11 @@ resources/
   dataset/                   # the two source files; never written to
 scripts/
   1-transform.js             # join + normalise + enrich -> data/records.json
-  2-index.js                 # push records, settings and rules
+  2-index.js                 # push records, settings, rules and synonyms
   cuisine-taxonomy.json      # hand-reviewed food_type -> cuisine mapping
   settings.json              # versioned index configuration
   rules.json                 # versioned query rules
+  synonyms.json              # versioned synonyms; optional, four -ies plurals
 data/
   records.json               # generated, gitignored
   enrichment-cache.json      # generated, gitignored
@@ -318,7 +323,8 @@ fallbacks so one `.env` serves both halves of the repo — the direction that ca
   environment variables, build config and asset paths fail in ways local development hides.
 - Both scripts fail loudly rather than degrade: a join below 100%, an unknown price label,
   an unmapped cuisine, a settings attribute absent from the records, a missing
-  `rules.json`, a dashboard-generated rule id, a rule filtering on a non-facet, or a
+  `rules.json`, a dashboard-generated rule or synonym id, a rule filtering on a non-facet,
+  a `synonyms.json` that is a bare array or carries an empty `synonyms`, or a
   `VITE_`-prefixed write key. `--dry-run` validates without a network call.
 - **Node 24 is required.** `nvm use` before `npm run dev`; `.nvmrc` pins 24 locally and
   `engines.node` at `"24.x"` is the only repo-side override Vercel reads.
@@ -343,9 +349,17 @@ fallbacks so one `.env` serves both halves of the repo — the direction that ca
 
 Out of scope, and the data model and instrumentation are built so none requires rework:
 personalization on the collected event stream; Recommend; A/B testing ranking strategies
-against booking conversion; semantic and natural-language querying; **query
-categorisation**, which is what would close `italian restaurant` and `sushi near me`; and
-replacing derived `occasions` with observed behavioural signals.
+against booking conversion; semantic and natural-language querying; replacing derived
+`occasions` with observed behavioural signals; and **Agent Studio**, as a second discovery
+surface rather than a fix to this one.
+
+Agent Studio is the interesting one for persona 2, whose pain is that browsing feels dated
+and offers few ways to be inspired. An agent can take a request this search box cannot
+answer — "somewhere for eight people after a show, not too expensive" — and resolve it into
+the filters and ranking the index already supports, because the attributes it would reason
+over are the ones section 4 defines: `occasions`, `dining_style`, `price_range`,
+`cuisine_tags`, `_geoloc`. It sits beside the results page and leaves it intact; the search
+box stays the fast path for persona 1, which an agent turn would only slow down.
 
 ## 10. Explicitly not in scope
 

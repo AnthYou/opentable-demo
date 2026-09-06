@@ -380,6 +380,7 @@ behaves as a facet rather than as free text.
 | D4 | `vietnamese` | P2 | 22558 `Indochine` and 2527 `Three Seasons` returned. Both were folded into primary cuisine `Asian` with a `Vietnamese` tag — this case verifies the fold did not make the term unsearchable. | **pass** |
 | D5 | `churrascaria` | P2 | The 33 `Brazilian Steakhouse` records. They sit under primary `Steakhouse` with a `Churrascaria` tag; the term appears nowhere in the source `food_type` values, only in the taxonomy tags. | **pass** |
 | D6 | `sushi` | P2 | **⚠ contested by design.** 72 records carry "sushi" in the *name* while 67 have `food_type: Sushi` and 140 `Japanese`. With `unordered(name)` first in `searchableAttributes`, the 72 name-matches outrank the cuisine matches. That is correct for persona 1 and wrong for persona 2. Resolution: name-matches rank first, and the page must surface a `cuisine: Japanese` refinement prominently instead of reordering. Recorded here so the trade-off is deliberate, not accidental. | **accepted** — the documented resolution inverted on 2026-09-04, in the direction this case says is right for persona 2. `geo` now sits above `attribute`, so a near record matching through `cuisine` outranks a distant one matching through `name`: from Denver the top ten are Denver and Boulder Japanese restaurants at 1–25 mi, of which 3 of the first 4 carry "sushi" in the name and the fourth (100009 `Epernay`) does not. The literal criterion — 10/10 top hits carrying "sushi" in the name — is therefore not met, while `cuisine: Japanese` is still reachable at 94. The case was written when name matches led unconditionally and it recorded that as "correct for persona 1 and wrong for persona 2"; the new order is the reading it preferred. |
+| D7 | `breweries` / `wineries` / `eateries` / `bakeries` | P2 | Each plural must return what its singular returns. A user naming a venue type in the plural — "breweries near me" — is browsing a category, and the corpus only ever holds the singular: `brewery` 8 times in a name plus 3 as a `cuisine_tag`, `winery` 10, `eatery` 11, `bakery` 2, and the four plurals **0 times in any attribute**. Written 2026-09-04 out of the `ignorePlurals` measurement, when three of the four returned **zero results** — the `-y` to `-ies` plural sits 3 edits from the corpus form, past `minWordSizefor2Typos: 8`, so no typo threshold reaches it and neither does `prefixLast`. | **pass** since the four `oneWaySynonym` entries in `scripts/synonyms.json`: `breweries` 0 → 9 hits, `wineries` 0 → 10, `eateries` 0 → 11, `bakeries` 1 → 3, each matching its singular's result set. The four singular queries are byte-identical with synonyms on and off, so the one-way direction does not leak. |
 
 ## 6. Ambiguous term
 
@@ -621,8 +622,8 @@ their own name rather than merely badly ranked. `cuisine_tags` is already search
 those queries work today.
 
 **Still open.** `anchoring: is` fires only on an exact whole-query match, so
-`italian restaurant` (98 hits), `cheap italian` and `sushi near me` are untouched. That
-remains the query-categorisation gap in CLAUDE.md §9.
+`italian restaurant` (98 hits), `cheap italian` and `sushi near me` are untouched. No rule
+shape in this file reaches them.
 
 The rules live in `scripts/rules.json` and are pushed by `2-index.js` with
 `clearExistingRules`, so the file is the whole rule set. The dashboard-created rule that

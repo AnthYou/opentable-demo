@@ -2,7 +2,7 @@
 
 A search and discovery experience for OpenTable's extract of 5,000 restaurants, built on
 Algolia with Vite and React InstantSearch. It covers two journeys: finding a restaurant by
-name, and browsing without one in mind. Relevance is evaluated against 52 cases in
+name, and browsing without one in mind. Relevance is evaluated against 53 cases in
 [`test-queries.md`](test-queries.md).
 
 ---
@@ -127,7 +127,7 @@ nvm use                       # reads .nvmrc
 npm install
 cp .env.example .env          # then fill in the four values
 node scripts/1-transform.js   # 5,000 records -> data/records.json
-node scripts/2-index.js       # push records, settings and replicas
+node scripts/2-index.js       # push records, settings, rules and synonyms
 npm run dev
 ```
 
@@ -153,13 +153,14 @@ bundle. `node scripts/2-index.js --dry-run` validates without touching the netwo
 |---|---|
 | [`CLAUDE.md`](CLAUDE.md) | Working context: the rules in force — personas, data profile, schema, index configuration, constraints |
 | [`DECISIONS.md`](DECISIONS.md) | How those rules were reached: measurements, reversals, and what was tried and rejected |
-| [`test-queries.md`](test-queries.md) | 52 relevance cases, their verdicts, and the settings change log |
+| [`test-queries.md`](test-queries.md) | 53 relevance cases, their verdicts, and the settings change log |
 | [`data/exploration.md`](data/exploration.md) | Full profiling record with every objectID |
 | [`data/transform-report.md`](data/transform-report.md) | Counts, conflicts resolved, cuisine mapping applied |
 | `scripts/1-transform.js` | Join, normalise, enrich. Deterministic, never talks to Algolia |
-| `scripts/2-index.js` | Push records, settings and replicas. Never transforms data |
+| `scripts/2-index.js` | Push records, settings, rules and synonyms. Never transforms data |
 | `scripts/settings.json` | Versioned index configuration, one justification per setting |
 | `scripts/rules.json` | Versioned query rules, with the counts behind each |
+| `scripts/synonyms.json` | Versioned synonyms; optional. Four one-way `-ies` plurals no typo threshold reaches |
 | `scripts/cuisine-taxonomy.json` | Hand-reviewed `food_type` mapping, 52 review notes |
 | `src/searchParams.js` | The search parameters, the geo fallback chain and the selector anchors, with boot-time assertions |
 | `src/insights.js` | queryID propagation, click and conversion events |
