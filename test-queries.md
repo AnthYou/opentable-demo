@@ -621,10 +621,6 @@ break are the most likely queries. Two tag values are also restaurant names, `Bi
 their own name rather than merely badly ranked. `cuisine_tags` is already searchable, so
 those queries work today.
 
-**Still open.** `anchoring: is` fires only on an exact whole-query match, so
-`italian restaurant` (98 hits), `cheap italian` and `sushi near me` are untouched. No rule
-shape in this file reaches them.
-
 The rules live in `scripts/rules.json` and are pushed by `2-index.js` with
 `clearExistingRules`, so the file is the whole rule set. The dashboard-created rule that
 prototyped this was replaced by `category-query-cuisine` on the same push.

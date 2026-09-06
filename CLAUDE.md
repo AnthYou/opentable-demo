@@ -205,8 +205,7 @@ a facet filter, so ordering falls to `geo` then `popularity_score`. One rule per
 via the `{facet:<attribute>}` placeholder covers 48 values. `dining_style` and `occasions`
 are absent from `searchableAttributes`, so those queries need a rule to work at all;
 `cuisine_tags` deliberately has none. `anchoring: is` means no rule fires unless the whole
-query equals a facet value, so name queries are untouched — and so is
-`italian restaurant`. Multi-word category queries stay open.
+query equals a facet value, so name queries are untouched.
 
 ### Geo
 
