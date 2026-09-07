@@ -293,7 +293,7 @@ the flaw too, so reverting `ranking` is not an alternative remedy.
 
 | change tried | why not |
 |---|---|
-| add `asc(name_word_count)` | No valid position. Before `desc(popularity_score)` it dominates, so broad queries such as `italian` or `steakhouse` would be ordered by name length. After it, it never fires, because `popularity_score` is a float with essentially no collisions. There is no conditional `customRanking`, so a signal meaningful only for short queries cannot be expressed there. No new attribute was added and the schema is unchanged. |
+| add `asc(name_word_count)` | No valid position. Before `desc(popularity_score)` it dominates, so broad queries such as `italian` or `steakhouse` would be ordered by name length. After it, it reaches only the records the two criteria above leave tied, and those are not the short-query cases the signal was wanted for: `popularity_score` takes 3,920 distinct values across 5,000 records, so 818 groups covering 1,898 records (38.0%) collide, the largest holding 7 — but 1,776 of those share `stars_count` and `reviews_count` as well, which is both why `desc(reviews_count)` separates only 122 of them and what a third criterion would be deciding between. `customRanking` applies to every query and there is no conditional form, so a signal meaningful only for short queries cannot be scoped there. No new attribute was added and the schema is unchanged. |
 
 ---
 

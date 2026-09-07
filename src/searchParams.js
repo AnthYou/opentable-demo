@@ -33,8 +33,8 @@
  * The distance bucket. Records inside one bucket count as equidistant and the next
  * ranking criterion decides, so 5 km is what stops a marginally closer mediocre
  * restaurant from outranking an excellent one two streets further. Measured on the empty
- * query from Denver: the top eight are all Denver restaurants rated 4.7 to 4.8 with 290
- * to 3,481 reviews, so `popularity_score` orders them inside the bucket.
+ * query from Denver: the top eight are all Denver restaurants rated 4.6 to 4.8 with 290
+ * to 5,267 reviews, so `popularity_score` orders them inside the bucket.
  */
 export const PRECISION_METRES = 5000;
 

@@ -282,9 +282,14 @@ the other 49 measurable cases.
 `desc(popularity_score)` it dominates: broad queries such as `italian` or `steakhouse`
 would be ordered by name length, which is meaningless for discovery and would displace
 the ranking signal the whole `popularity_score` design exists to provide. After it, it
-never fires — `popularity_score` is a float with essentially no collisions. There is no
-conditional `customRanking`, so a signal that is only meaningful for short queries cannot
-be expressed there. No new attribute was added and the section 4 schema is unchanged.
+reaches only what the two criteria above leave tied, and that is not the short-query case
+the signal was wanted for: `popularity_score` takes 3,920 distinct values across 5,000
+records, so 818 groups covering 1,898 records (38.0%) collide, the largest holding 7 — but
+1,776 of those share `stars_count` and `reviews_count` too, which is why
+`desc(reviews_count)` separates only 122 of them and is what a third criterion would be
+deciding between. `customRanking` applies to every query and has no conditional form, so a
+signal that is only meaningful for short queries cannot be scoped there. No new attribute
+was added and the section 4 schema is unchanged.
 
 ### Why `exactOnSingleWordQuery: "word"` was rejected
 
