@@ -11,7 +11,7 @@
  * Three things have to line up for an event to be attributable, and all three are here:
  *
  * 1. **`clickAnalytics: true`** on the search, so Algolia returns a `queryID`. That is in
- *    `searchParams.js`, on both parameter sets.
+ *    `searchParams.js`, in the one parameter set every query uses.
  * 2. **A `userToken`**, so events from one visitor can be tied together.
  * 3. **The `insights` middleware**, registered through `<InstantSearch insights={...}>`,
  *    which pairs each event with the `queryID` of the search that produced the hit.

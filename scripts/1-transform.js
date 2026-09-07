@@ -270,8 +270,9 @@ const records = work.map((src) => {
 // ---------------------------------------------------------------- pass 2: chains
 
 /** Chains appear two ways and only one is visible to an exact-string comparison:
- *  23 names are byte-identical duplicates, and 1,086 records encode the location as a
- *  " - <suffix>" suffix. Grouping on the folded base name catches both. */
+ *  23 names duplicate case-insensitively (21 byte-identical, plus Range/range and
+ *  Eleven/ELEVEN), and 1,085 records yield a " - <suffix>" suffix out of the 1,086 that
+ *  carry the separator. Grouping on the folded base name catches both. */
 const chainGroups = new Map();
 for (const r of records) {
   const k = foldName(baseName(r.name));
@@ -300,7 +301,7 @@ for (const group of chainGroups.values()) {
 
 // ---------------------------------------------------------------- pass 3: label ambiguity
 
-/** On 9 of the 50 same-city chain clusters two locations share a neighborhood, so
+/** On 9 of the 51 same-city chain clusters two locations share a neighborhood, so
  *  location_label alone renders them identically — Fleming's Scottsdale 40036/39919
  *  both read "Scottsdale". Flag them so the front end knows distance is load-bearing
  *  rather than decorative. test-queries.md C2 and C3 fail without this. */

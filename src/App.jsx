@@ -79,11 +79,10 @@ function useGeoPosition() {
  * because it is what justifies curating the list, but a number beside a place in a search
  * UI reads as a result count, and it is not one. See `searchParams.js` for the three
  * constraints every anchor meets and for the two markets the data cannot represent.
- */
-/**
- * One group per city, in `DEMO_POSITIONS` order. Built once rather than per render, and
- * derived from the list so the data stays the single source of truth — a new anchor
- * appears under its city without touching this component.
+ *
+ * `POSITION_GROUPS` below is one group per city, in `DEMO_POSITIONS` order. Built once
+ * rather than per render, and derived from the list so the data stays the single source
+ * of truth — a new anchor appears under its city without touching this component.
  */
 const POSITION_GROUPS = DEMO_POSITIONS.reduce((groups, position) => {
   const current = groups.at(-1);
@@ -116,7 +115,8 @@ function LocationPicker({ value, onChange }) {
 }
 
 /**
- * §5: "tell the user which location is in use so the results are never unexplained."
+ * CLAUDE.md §5: "The UI states which one is in use." The results must never be
+ * unexplained.
  *
  * `geoParams` reports which rung of the fallback chain is actually in use, and the banner
  * has to say so. The IP rung gets a full sentence rather than a label, because "your
@@ -141,9 +141,12 @@ function GeoBanner({ status, source, label, waiting }) {
 }
 
 /**
- * One parameter set for every query, with the resolved position merged in. Distance
- * leads and `exact` protects the known-item journey from inside the index `ranking`, so
- * nothing here depends on what the query looks like.
+ * One parameter set for every query, with the resolved position merged in. Distance leads
+ * from inside the index `ranking` — `geo` sits at position 2, above `exact` — so nothing
+ * here depends on what the query looks like. The known-item journey is served by
+ * `unordered(name)` at level 1 of `searchableAttributes` and by typo tolerance, not by
+ * `exact`, which `geo` outranks: test-queries.md A1, A2 and A6 are `accepted` on that
+ * trade.
  */
 function SearchConfiguration({ geo }) {
   return <Configure {...searchParams} {...(geo?.params ?? {})} />;

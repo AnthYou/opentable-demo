@@ -14,7 +14,7 @@
  * Denver, 117067 `Prime` sits at rank 14 of 49 behind `Ocean Prime - Denver`, and
  * test-queries.md A1, A2 and A6 are `accepted` on the use case: someone who wants a
  * restaurant in another city names that city, and ten city-qualified queries each return
- * exactly one hit at rank 1. See DECISIONS.md §2 before reordering `ranking`.
+ * exactly one hit at rank 1. See DECISIONS.md §3 before reordering `ranking`.
  *
  * `aroundRadius` stays `"all"` so a result is never lost to distance. The corpus is a
  * sparse national sample — 5,000 restaurants across 916 cities — and a bounded radius
@@ -26,7 +26,8 @@
  * retrieved for.
  *
  * Earlier designs — two parameter sets switched by a name-versus-category heuristic, and
- * geo gated on the query being empty — are recorded in DECISIONS.md §4.
+ * geo gated on the query being empty — are recorded in DECISIONS.md §6 and in the
+ * test-queries.md change log.
  */
 
 /**
@@ -238,11 +239,13 @@ export const searchParams = {
 
 /**
  * The geo half: coordinates and radius. Applied whenever a position is resolvable, which
- * is always — browser, then IP, then the default metro.
+ * is always: browser position when granted, `aroundLatLngViaIP` otherwise. Those are the
+ * only two automatic rungs — see the note on `DEFAULT_POSITION` for why there cannot be a
+ * third — and the user-facing third path is the location selector.
  *
- * Returns the parameters **and** the label to show the user, because §5 requires the
- * location in use to be stated: "tell the user which location is in use so the results
- * are never unexplained". A caller that ignores `label` leaves the results unexplained,
+ * Returns the parameters **and** the label to show the user, because CLAUDE.md §5 requires
+ * the rung in use to be stated — "The UI states which one is in use" — so that the
+ * results are never unexplained. A caller that ignores `label` leaves them unexplained,
  * which is the failure the requirement exists to prevent.
  *
  * @param {{lat: number, lng: number} | null} position Browser geolocation, or null when
@@ -257,7 +260,7 @@ export function geoParams(position, options = {}) {
   if (position && Number.isFinite(position.lat) && Number.isFinite(position.lng)) {
     // A position carrying its own label came from the selector; one without came from
     // the browser. Keeping the label here rather than in the caller is what stops §5's
-    // "tell the user which location is in use" from being skippable.
+    // "The UI states which one is in use" from being skippable.
     return {
       source: position.label ? 'selected' : 'browser',
       label: position.label ?? 'your location',
@@ -280,12 +283,6 @@ export function geoParams(position, options = {}) {
   };
 }
 
-/**
- * `PRECISION_METRES` is the one setting that decides whether distance ranks at all, so
- * it fails at boot rather than degrading silently. Above ~10,000 km the ranking was
- * measured identical to sending no geo; a value that large means the demo has quietly
- * stopped being location-aware.
- */
 /**
  * No two selector entries may fall inside the same distance bucket. Two positions closer
  * than `PRECISION_METRES` are declared tied by `geo`, so they return the same order and
@@ -325,6 +322,12 @@ function assertSelectorSeparation() {
 
 assertSelectorSeparation();
 
+/**
+ * `PRECISION_METRES` is the one setting that decides whether distance ranks at all, so
+ * it fails at boot rather than degrading silently. Above ~10,000 km the ranking was
+ * measured identical to sending no geo; a value that large means the demo has quietly
+ * stopped being location-aware.
+ */
 if (!(PRECISION_METRES > 0) || PRECISION_METRES >= 10000000) {
   throw new Error(
     `PRECISION_METRES is ${PRECISION_METRES} m. Below 1 it is not a bucket; at or above 10,000,000 m the whole corpus ` +

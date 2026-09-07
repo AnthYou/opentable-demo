@@ -9,9 +9,11 @@ const EARTH_RADIUS_MILES = 3958.8;
 const toRadians = (deg) => (deg * Math.PI) / 180;
 
 /**
- * Great-circle distance in miles. Used for *display only*: a typed query deliberately
- * sends no geo parameter to Algolia (see `searchParams.js`), so computing distance here
- * is what lets it reach the result card without letting distance into the ranking.
+ * Great-circle distance in miles. Used for *display only*. Geo is sent on every request
+ * (see `searchParams.js`), so Algolia already orders by distance through the `geo`
+ * criterion — but it never returns the distance it used. Computing it here is what lets
+ * the number reach the result card, and it is why the ordering is legible: the reader can
+ * watch the distances ascend down the page.
  */
 export function distanceMiles(from, to) {
   if (!from || !to) return null;
@@ -138,9 +140,9 @@ export function starFillPercent(stars) {
  * written that way — while `cuisine`, `cuisine_tags`, `dining_style` and `price_range` all
  * arrive capitalised, so the panel read as inconsistent. Capitalising happens at display
  * time and never in the data, because the stored value is load-bearing: it is what
- * `filters` sends to Algolia and what the name-versus-category heuristic in
- * `searchParams.js` matches a lowercased query against. Rewriting it would mean a
- * re-transform and a re-index to change nothing but letter case.
+ * `filters` sends to Algolia and what the `category-query-*` rules in
+ * `scripts/rules.json` match a query against via `{facet:<attribute>}`. Rewriting it
+ * would mean a re-transform and a re-index to change nothing but letter case.
  */
 export function titleCase(value) {
   return String(value ?? '').replace(/\b[a-z]/g, (c) => c.toUpperCase());

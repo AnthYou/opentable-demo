@@ -5,7 +5,7 @@
  * Reads   data/records.json          (produced by 1-transform.js)
  *         scripts/settings.json      (versioned index configuration)
  *         scripts/rules.json         (versioned query rules)
- *         scripts/synonyms.json      (optional; absent for now)
+ *         scripts/synonyms.json      (optional; present, four one-way -ies plurals)
  *         .env                       (unprefixed write key)
  *
  * Never transforms data. If a value looks wrong, fix 1-transform.js and re-run it —
