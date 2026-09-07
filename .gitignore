@@ -33,4 +33,9 @@ data/enrichment-cache.json
 
 # Vercel CLI writes project/org ids here — not secret, but not repo content either.
 .vercel
-.env*
+
+# Every dotenv variant except the committed template. A blanket `.env*` would swallow
+# `.env.example`, which the README tells the reader to copy — CLAUDE.md §7 names only the
+# two real ones, and this keeps the file matching that.
+.env.*
+!.env.example
