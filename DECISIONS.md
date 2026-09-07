@@ -92,21 +92,28 @@ neighbourhood or city and so tells the reader where a restaurant is on half the 
 In force: `foldName` is the single definition of chain identity, shared by the transform and
 the profiling script. `chain_name` is never a blind split on the separator.
 
-**Exact duplicates: 23 names**, each at exactly 2 locations, always in different cities
+**Exact duplicates: 23 names** case-insensitively — 21 byte-identical, plus the two
+case-only pairs below — each at exactly 2 locations, always in different cities
 (`Town`, `Sienna`, `Pappas Bros. Steakhouse`, `Cocotte`, `Grange`, …). One shares a market:
 `Rafain Brazilian Steakhouse` (68527 Dallas / 144949 Fort Worth), both in
 `Dallas - Fort Worth`, so `market` does not separate them. Two differ only by case:
 `Range` (4221) / `range` (141001), `Eleven` (150715) / `ELEVEN` (3204).
 
-**Suffixed locations: 1,086 records** carry a ` - <location>` suffix. Grouping on the folded
-base name gives 213 chains covering 722 records, 44 of them with two or more locations in
-the same city — 51 clusters, 113 records. Largest: Cyclone Anaya's ×5 in Houston (145369,
-145366, 151276, 145381, 145375), Churrascos ×4 in Houston (883, 150679, 114319, 882), then
-×3 for Perry's Steakhouse (Houston), Atria's (Pittsburgh), Sushi Zushi (San Antonio), The
-Wine Bistro (Columbus), Stone Werks (San Antonio), BRAVO Cucina Italiana (Columbus).
+**Suffixed locations: 1,086 records** carry a whitespace-separated ` - ` in `name`, and
+**1,085 of them yield a stripped base name.** The one that does not is 4478 `Bocca Di Bacco
+(Theatre District - 45th St.)`, whose separator sits inside parentheses — `baseName` only
+splits at depth 0, which is the guard that keeps it whole. `data/exploration.md` A2.2
+counts separators (1,086); `data/transform-report.md` counts successful strips (1,085).
+Grouping on the folded base name gives 213 chains covering 722 records, 44 of them with
+two or more locations in the same city — 51 clusters, 113 records. Largest: Cyclone
+Anaya's ×5 in Houston (145369, 145366, 151276, 145381, 145375), Churrascos ×4 in Houston
+(883, 150679, 114319, 882), then ×3 for Perry's Steakhouse (Houston), Atria's
+(Pittsburgh), Sushi Zushi (San Antonio), The Wine Bistro (Columbus), Stone Werks
+(San Antonio), BRAVO Cucina Italiana (Columbus).
 
-Same-city ambiguity is reproducible on this extract, which `prospect-context.md` names
-explicitly as a reported pain. No synthetic case is needed and none was introduced.
+Same-city ambiguity is reproducible on this extract, and CLAUDE.md §2 names it explicitly
+as a reported pain: "chains with several locations in the same city are impossible to tell
+apart". No synthetic case is needed and none was introduced.
 
 **Glyph folding earns its place.** Grouping on the raw lowercased base name finds 212
 chains. Folding diacritics and unifying apostrophe and dash glyphs finds a 213th:
@@ -344,6 +351,72 @@ on their own query with the thresholds unchanged, so the exception has nothing t
 `removeStopWords` are dictionary-driven, and with no language declared they resolve against
 every supported language, a far wider plural and stop-word set than a corpus where `country`
 is constant `US`.
+
+---
+
+### `removeWordsIfNoResults: "lastWords"` — the alternatives cost more than they buy
+
+In force: `lastWords`. All four values were measured at query time on 2026-09-07, after the
+setting had spent the whole build as the file's last open question.
+
+**The setting's reach is much narrower than its reputation.** It fires only on a multi-word
+query carrying a token absent from the corpus. Of 81 probes, **70 are byte-identical under
+all four values**, and no known-item, category, chain, geo or empty-query case moves under
+any of them. The ten city-qualified queries the `geo` decision rests on — `prime mansfield`,
+`rye brooklyn`, `nobu waikiki` and the rest — are inert: every word matches, so nothing is
+removed.
+
+**What `none` buys.** test-queries.md O2 `olive garden`, O3 `shake shack` and O4
+`sushi in tokyo` all return 0, which is what their expectations ask for. Three cases.
+
+**What `none` costs: eight in-scope known-item queries, every one falling to zero hits.**
+
+| query | `lastWords` | `none` | why it is in scope |
+|---|---|---|---|
+| `benihana chicago` | 24 | **0** | Benihana has 24 locations; Chicago holds **0 records** |
+| `ruths chris boston` | 31 | **0** | Boston holds 0 records |
+| `melting pot denver` | 26 | **0** | 0 Melting Pots in Denver |
+| `nobu seattle` | 9 | **0** | Seattle holds 0 records |
+| `pappas bros atlanta` | 2 | **0** | Atlanta holds 0 records |
+| `mccormick and schmicks` | 15 | **0** | `&` → `and`, a §2 spelling pain |
+| `pappas brothers steakhouse` | 3 | **0** | K12 with the suffix typed too |
+| **K12 `pappas brothers`** | 3 | **0** | roster case; passes only through this setting |
+
+This is the sparse-corpus property `src/searchParams.js` already reasons about: Chicago,
+Boston, Atlanta and Seattle hold no records, which is why the location selector exists.
+Dropping the unmatched city is what keeps a real chain reachable from a city the extract
+does not cover. A diner in Chicago typing `benihana chicago` and getting nothing, while the
+index holds 24 Benihanas, is a worse failure than O2's six olive restaurants — a known-item
+query returning zero is the one outcome persona 1 cannot recover from.
+
+**`allOptional` is uniformly worse**, in scope as much as out: `melting pot denver` 26 →
+388, `pappas brothers steakhouse` 3 → 515, O4 1 → 111, O2 6 → 39. It maximises noise.
+
+**`firstWords` was rejected as scoreboard-only.** It drops the *first* word and keeps the
+rest, so it trims the brand and retains the city — backwards for persona 1. It scores +1 on
+the roster (O4 → 0) while degrading O2 from 6 junk hits to 33, and reduces
+`benihana chicago` to 1 hit. Choosing it would optimise the case list against the intent of
+CLAUDE.md §8.
+
+**No value dominates, and that is the finding.** `lastWords` errs when the unmatched word is
+the distinctive one (`garden`, `shack`, `tokyo`); `none` errs when it is noise (`brothers`,
+`chicago`, `and`). Which applies is a property of the query, not of the setting, so no
+setting resolves it. `lastWords` is kept because its failure mode is recoverable and
+`none`'s is not.
+
+**The cases stay `fail`.** O2 and O4 are not met, and the configuration that would meet them
+is measurably worse, so nothing changes and the failures are recorded rather than
+relabelled — `accepted` would assert that six unrelated restaurants are a defensible answer
+to `olive garden`, and they are not. O3 turned out to have a different cause: `shack` is
+dropped and typo tolerance on the 5-letter `shake` supplies the whole page from `Sake`,
+`Snake`, `Share` and `Shaker`. `minWordSizefor1Typo: 6` closes it and breaks K7
+`papas bros steakhouse`; see §4 above and the change log.
+
+**What would actually help is not this setting.** Filler words — `best`, `cheap`, `near me`
+— are trimmed or kept by accident of position. `optionalWords`, or a rule stripping a known
+filler list, addresses that properly. It belongs with the §9 natural-language work, which is
+assigned to Agent Studio rather than to this search box, and natural-language probes were
+therefore measured but deliberately **not** used to justify this decision.
 
 ---
 

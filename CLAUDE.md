@@ -63,13 +63,18 @@ beyond them. `data/exploration.md` holds the full profiling record.
 
 `dining_style` (4 values) and `price_range` (3 values) are usable as facets as delivered.
 
-**Chains are encoded two ways.** 23 names are byte-identical duplicates; 1,086 records
-carry a ` - <location>` suffix. Grouping on the folded base name gives **213 chains
-covering 722 records, 44 of them with two or more locations in one city** — 51 clusters,
-113 records. Same-city ambiguity is reproducible here and must be demonstrated on real
-records; no synthetic case may be introduced. `foldName` is the single definition of chain
+**Chains are encoded two ways.** 23 names are duplicated at a second location — 21
+byte-identical, plus two pairs differing only by case (`Range`/`range`,
+`Eleven`/`ELEVEN`), which is why the fold and not `===` is the definition. 1,086 records
+carry a whitespace-separated ` - ` in `name`, of which **1,085 yield a suffix**: `baseName`
+skips 4478 `Bocca Di Bacco (Theatre District - 45th St.)`, whose separator sits inside
+parentheses, which is why `data/transform-report.md` reports 1,085 and not 1,086.
+Grouping on the folded base name gives **213 chains covering 722 records, 44 of them
+with two or more locations in one city** — 51 clusters, 113 records. Same-city ambiguity
+is reproducible here and must be demonstrated on real records; no synthetic case may be
+introduced. `foldName` is the single definition of chain
 identity, shared by the transform and the profiling script. `chain_name` is never a blind
-split on the separator — 406 of the 1,086 suffixes are not places.
+split on the separator — 406 of the separated values are not places.
 
 **The location fallback chain has four rungs**, split across the transform and the front
 end: `neighborhood` when it differs from `city` (trimmed, case-insensitive) → `city` →
@@ -156,13 +161,18 @@ attributesForFaceting: [
   "searchable(city)", "searchable(market)", "searchable(neighborhood)",
   "filterOnly(is_chain)"
 ]
-typoTolerance: minWordSizefor1Typo 4, minWordSizefor2Typos 8,
+typoTolerance: true, minWordSizefor1Typo 4, minWordSizefor2Typos 8,
                allowTyposOnNumericTokens false
+disableTypoToleranceOnWords: []          # empty; the A3/A4 remedy, not needed
 exactOnSingleWordQuery: "attribute"
 queryType: "prefixLast"
 ignorePlurals: false
 removeStopWords: false
-removeWordsIfNoResults: "lastWords"    # the one open relevance question
+removeWordsIfNoResults: "lastWords"    # all four values measured; see DECISIONS.md §4
+attributesToHighlight: [name, chain_name, cuisine, cuisine_tags, neighborhood, city]
+numericAttributesForFiltering: [price_tier, stars_count, reviews_count]
+maxValuesPerFacet: 100                   # Algolia's default, declared
+paginationLimitedTo: 1000                # Algolia's default, declared
 replicas (virtual): rating_desc          # relevancyStrictness 50, see below
 ```
 
@@ -193,9 +203,10 @@ set it to `0`.
 each, and 916 cities and 1,062 neighborhoods cannot be reached by scrolling a `limit` of 6.
 
 **Typo thresholds are a measured compromise**: 59 pairs of distinct names sit at edit
-distance 1, and 36 names fall under the 4-character floor and get no tolerance. Do not
-move them without a `test-queries.md` case naming the pair the change fixes and the pair
-it puts at risk.
+distance 1, and 36 records (35 distinct names) carry fewer than 4 alphanumeric
+characters, so they fall under the floor and get no tolerance at all. Do not move them
+without a `test-queries.md` case naming the pair the change fixes and the pair it puts
+at risk.
 
 ### Query rules
 
@@ -274,9 +285,12 @@ src/
   searchClient.js            # single Algolia client, search-only key
   searchParams.js            # the parameter set, the geo chain, the selector anchors
   insights.js                # queryID propagation, click + conversion events
-  components/                # custom widgets (Hit, Facets, SortBy, …)
-  lib/                       # shared formatters (place, distance, price)
-public/img/                   # thirteen Unsplash category images, committed
+  components/                # custom widgets (Hit, FilterPanel, Stars)
+  lib/format.js              # shared formatters (place, distance, price, initials)
+  index.css  App.css         # the two stylesheets
+public/
+  img/                       # thirteen Unsplash category images, committed
+  favicon.svg  icons.svg
 ```
 
 Two-step pipeline, each step independently re-runnable. `1-transform.js` is deterministic

@@ -2,8 +2,10 @@
 
 A search and discovery experience for OpenTable's extract of 5,000 restaurants, built on
 Algolia with Vite and React InstantSearch. It covers two journeys: finding a restaurant by
-name, and browsing without one in mind. Relevance is evaluated against 54 cases in
-[`test-queries.md`](test-queries.md).
+name, and browsing without one in mind. Relevance is evaluated against 54 hand-picked
+cases in [`test-queries.md`](test-queries.md), currently **42 `pass`, 8 `accepted`,
+4 `fail`** — the four failures have three root causes, and every non-passing case
+carries the measurement behind the verdict.
 
 ---
 
@@ -45,12 +47,13 @@ fields disagree. Full record in [`data/exploration.md`](data/exploration.md).
 | `area` has no ` / ` separator | 2,103 (42%) | Kept as an opaque `market` facet, never split into city + state |
 | `food_type` holds 114 overlapping values | all 5,000 | Mapped by hand to 37 cuisines and 102 tags |
 
-Same-city chains are reproducible here. 1,086 records carry a ` - <location>` suffix, and
-grouping on the folded base name gives **213 chains, 44 with two or more locations in one
-city** — 51 clusters, 113 records. Folding diacritics, apostrophes and dashes finds the
-213th: `Big Daddy's`, two New York locations differing only by a curly apostrophe and an en
-dash. On 9 clusters the siblings share a neighbourhood too, so 18 records carry
-`location_label_ambiguous` and the front end appends distance.
+Same-city chains are reproducible here. 1,086 records carry a whitespace-separated ` - `
+in `name` and 1,085 of them yield a suffix — the exception has its separator inside
+parentheses — and grouping on the folded base name gives **213 chains, 44 with two or
+more locations in one city** — 51 clusters, 113 records. Folding diacritics, apostrophes
+and dashes finds the 213th: `Big Daddy's`, two New York locations differing only by a
+curly apostrophe and an en dash. On 9 clusters the siblings share a neighbourhood too,
+so 18 records carry `location_label_ambiguous` and the front end appends distance.
 
 59 pairs of distinct names sit one edit apart, including `Kaya` and `Naya`, both in
 Pittsburgh. At `minWordSizefor1Typo: 4` each ranks 1 on its own query.
@@ -61,10 +64,12 @@ Pittsburgh. At `minWordSizefor1Typo: 4` each ranks 1 on its own query.
 
 **`searchableAttributes` is name-first:** `unordered(name)`, then cuisine, then the place
 fields. `chain_name` and `address` are retrieved for display and never searched. All 722
-chained records have a name beginning with their `chain_name`, so searching it reaches
-nothing new while handing every chain member a whole-attribute exact match that cancels the
-real name match. Searching `address` pulls in neighbours by street: `kaya` would reach 27
-Waikiki restaurants on Kalakaua Avenue, and no stated pain asks for street search.
+chained records have a name beginning with their `chain_name` once folded — the 11
+byte-level exceptions are case and apostrophe variants of the same label — so searching
+it reaches nothing new while handing every chain member a whole-attribute exact match
+that cancels the real name match. Searching `address` pulls in neighbours by street:
+`kaya` would reach 27 Waikiki restaurants on Kalakaua Avenue, and no stated pain asks
+for street search.
 
 **Geo is always sent, at a 5 km `aroundPrecision` bucket, on every query.** `aroundRadius`
 stays unbounded because a bounded radius returns nothing for most positions in a sparse
@@ -169,5 +174,5 @@ bundle. `node scripts/2-index.js --dry-run` validates without touching the netwo
 Index configuration lives in the repo and is pushed by script, never edited in the
 dashboard.
 
-**Stack:** Vite + React InstantSearch. Six runtime dependencies, 143 KB gzipped. The index
+**Stack:** Vite + React InstantSearch. Six runtime dependencies, 146 KB gzipped. The index
 is `restaurants` plus one virtual replica, `rating_desc`, for the sort control.

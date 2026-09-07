@@ -1772,8 +1772,12 @@ Two observations on this set:
 
 ### A2.2 — suffixed locations: the real chain encoding
 
-1086 records carry a ` - <location>` suffix. Grouping on the base name with the suffix
-stripped gives **213 distinct base names at more than one location, covering 722 records.**
+1086 records carry a whitespace-separated ` - ` in `name`. **1085 of them yield a stripped
+base name** — the exception is 4478 `Bocca Di Bacco (Theatre District - 45th St.)`, counted
+here because it carries the separator and excluded by `baseName` because the separator is
+inside parentheses, which is why the transform report says 1085. Grouping on the base name
+with the suffix stripped gives **213 distinct base names at more than one location,
+covering 722 records.**
 
 This is what makes same-city disambiguation reproducible on the extract — see A2.3. Complete
 roster of every multi-location group, largest first:
