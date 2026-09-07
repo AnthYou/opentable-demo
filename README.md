@@ -2,7 +2,7 @@
 
 A search and discovery experience for OpenTable's extract of 5,000 restaurants, built on
 Algolia with Vite and React InstantSearch. It covers two journeys: finding a restaurant by
-name, and browsing without one in mind. Relevance is evaluated against 53 cases in
+name, and browsing without one in mind. Relevance is evaluated against 54 cases in
 [`test-queries.md`](test-queries.md).
 
 ---
@@ -154,7 +154,7 @@ bundle. `node scripts/2-index.js --dry-run` validates without touching the netwo
 |---|---|
 | [`CLAUDE.md`](CLAUDE.md) | Working context: the rules in force — personas, data profile, schema, index configuration, constraints |
 | [`DECISIONS.md`](DECISIONS.md) | How those rules were reached: measurements, reversals, and what was tried and rejected |
-| [`test-queries.md`](test-queries.md) | 53 relevance cases, their verdicts, and the settings change log |
+| [`test-queries.md`](test-queries.md) | 54 relevance cases, their verdicts, and the settings change log |
 | [`data/exploration.md`](data/exploration.md) | Full profiling record with every objectID |
 | [`data/transform-report.md`](data/transform-report.md) | Counts, conflicts resolved, cuisine mapping applied |
 | `scripts/1-transform.js` | Join, normalise, enrich. Deterministic, never talks to Algolia |
