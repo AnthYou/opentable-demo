@@ -175,7 +175,7 @@ name carries no meaning. `chain_name` and `address` are retrieved for display an
 searched.
 
 **`geo` sits second, above `words`, `attribute` and `exact`, and that is a decision about
-the use case.** Proximity is the dominant intent signal for a diner choosing somewhere to
+the use case.** Geographic distance is the dominant intent signal for a diner choosing
 eat, and someone wanting a restaurant in another city names that city — ten city-qualified
 queries each return exactly one hit at rank 1. The cost is recorded on `test-queries.md`
 A1, A2 and A6, which are `accepted` rather than passing. **Do not reorder `ranking`

@@ -72,7 +72,7 @@ function useGeoPosition() {
  * below it is a neighbourhood, grouped under its city, because a market centroid and one of its
  * own neighbourhoods land in the same `aroundPrecision` bucket and return the same page —
  * two menu rows for one result set. Neighbourhoods also do something markets cannot:
- * moving inside a city is the only way to watch proximity reorder a result set that is
+ * moving inside a city is the only way to watch `geo` reorder a result set that is
  * already entirely local.
  *
  * Their record counts are deliberately not shown. `DEMO_POSITIONS` carries `records`
@@ -141,7 +141,7 @@ function GeoBanner({ status, source, label, waiting }) {
 }
 
 /**
- * One parameter set for every query, with the resolved position merged in. Proximity
+ * One parameter set for every query, with the resolved position merged in. Distance
  * leads and `exact` protects the known-item journey from inside the index `ranking`, so
  * nothing here depends on what the query looks like.
  */
@@ -267,7 +267,7 @@ export default function App() {
   /**
    * Geo is never withdrawn, and that includes the wait. `geoParams(null)` falls through
    * to `aroundLatLngViaIP`, which needs no permission and is resolved server-side, so
-   * proximity is present from the very first request and is simply upgraded to precise
+   * geo ordering is present from the very first request and is simply upgraded to precise
    * coordinates if and when the browser answers.
    */
   const geo = useMemo(() => geoParams(position), [position]);

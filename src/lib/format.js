@@ -11,7 +11,7 @@ const toRadians = (deg) => (deg * Math.PI) / 180;
 /**
  * Great-circle distance in miles. Used for *display only*: a typed query deliberately
  * sends no geo parameter to Algolia (see `searchParams.js`), so computing distance here
- * is what lets it reach the result card without letting proximity into the ranking.
+ * is what lets it reach the result card without letting distance into the ranking.
  */
 export function distanceMiles(from, to) {
   if (!from || !to) return null;
@@ -45,7 +45,7 @@ export function formatDistance(miles) {
  * records flagged `location_label_ambiguous`, where 9 same-city chain clusters share a
  * neighborhood and both rows would otherwise read identically — Fleming's Steakhouse
  * 40036 and 39919 both resolve to "Scottsdale". It also makes the ranking legible: with
- * proximity leading, a reader can see the distances ascend down the page.
+ * `geo` leading, a reader can see the distances ascend down the page.
  *
  * `address` stands in for distance on the flagged records when no position is known, and
  * is the reason `address` is retrieved despite not being searchable.

@@ -13,7 +13,7 @@ import { EVENT_CLICKED, EVENT_BOOKED } from '../insights.js';
  *
  * Place gets its own line, above cuisine and price. It carries neighborhood, city, state
  * and distance, so a reader can tell where every result is and watch the distances ascend
- * down the page while proximity is leading the ranking.
+ * down the page while `geo` is leading the ranking.
  *
  * `Highlight` on the name is load-bearing rather than decorative: with typo tolerance
  * active a query for `naya` can return `Kaya`, and the row only makes sense if the

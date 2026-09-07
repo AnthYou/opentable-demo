@@ -28,7 +28,7 @@ through to distance when the neighbourhood repeats.
 
 **Discovery.** No restaurant in mind. The empty query renders curated occasion and cuisine
 entry points, a cuisine facet of 37 values, place facets with search boxes, a rating sort
-and proximity ordering.
+and geo ordering.
 
 ---
 
@@ -70,14 +70,15 @@ Waikiki restaurants on Kalakaua Avenue, and no stated pain asks for street searc
 stays unbounded because a bounded radius returns nothing for most positions in a sparse
 national sample, and the 5 km bucket is coarse enough that `popularity_score` breaks ties
 inside it. `geo` sits second in `ranking`, above `words`, `attribute` and `exact`, which is
-a decision about the use case: proximity is the dominant intent signal for a diner choosing
+a decision about the use case: geographic distance is the dominant intent signal for a
+diner choosing
 somewhere to eat, and someone wanting a restaurant in another city names that city — ten
 city-qualified queries each return exactly one hit at rank 1. The cost is that an exact name
 can lose to a nearer partial match, recorded on three accepted cases.
 
 **Three query rules turn a category-shaped query into a filtered browse.** A query equal to
 a value of `cuisine`, `dining_style` or `occasions` has its words removed and the value
-applied as a facet filter, so ordering falls to proximity then rating. `dining_style` and
+applied as a facet filter, so ordering falls to distance then rating. `dining_style` and
 `occasions` are not searchable attributes, so a rule is what makes those queries work at
 all: `casual elegant` reaches its 2,130 records, `date night` its 1,639.
 

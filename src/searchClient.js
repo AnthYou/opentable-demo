@@ -63,7 +63,7 @@ export const searchClient = liteClient(appId, searchApiKey);
  *
  * The primary index comes first and is the geo-aware default: there is no `distance`
  * replica, because a replica's order comes from stored attributes and distance depends
- * on the user's position at query time. Proximity ordering is produced by sending
+ * on the user's position at query time. Distance ordering is produced by sending
  * `aroundLatLng` to the primary, where the `geo` criterion sits second in `ranking`
  * (CLAUDE.md §5).
  *

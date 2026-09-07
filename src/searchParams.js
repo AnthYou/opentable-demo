@@ -2,11 +2,11 @@
  * searchParams.js — the search parameters, and the geo fallback chain.
  *
  * There is one search surface and one parameter set. Every query carries the user's
- * position with `aroundRadius: "all"` and `aroundPrecision: 5 km`, so proximity orders
+ * position with `aroundRadius: "all"` and `aroundPrecision: 5 km`, so distance orders
  * the results and `popularity_score` breaks ties inside each bucket.
  *
- * Proximity leads deliberately. `geo` sits second in the index `ranking`, above `words`,
- * `attribute` and `exact`, because proximity is the dominant intent signal for a diner
+ * Distance leads deliberately. `geo` sits second in the index `ranking`, above `words`,
+ * `attribute` and `exact`, because geographic distance is the dominant intent signal for a diner
  * choosing somewhere to eat: `cyclone` from Houston returns the five Cyclone Anaya's at
  * 2, 2, 3, 4 and 7 mi, and `pappas bros` from Dallas puts Dallas above Houston.
  *
@@ -281,7 +281,7 @@ export function geoParams(position, options = {}) {
 }
 
 /**
- * `PRECISION_METRES` is the one setting that decides whether proximity ranks at all, so
+ * `PRECISION_METRES` is the one setting that decides whether distance ranks at all, so
  * it fails at boot rather than degrading silently. Above ~10,000 km the ranking was
  * measured identical to sending no geo; a value that large means the demo has quietly
  * stopped being location-aware.
@@ -328,7 +328,7 @@ assertSelectorSeparation();
 if (!(PRECISION_METRES > 0) || PRECISION_METRES >= 10000000) {
   throw new Error(
     `PRECISION_METRES is ${PRECISION_METRES} m. Below 1 it is not a bucket; at or above 10,000,000 m the whole corpus ` +
-      'falls into one bucket and the geo criterion decides nothing, which removes proximity from every journey. ' +
+      'falls into one bucket and the geo criterion decides nothing, which removes distance from every journey. ' +
       'See test-queries.md and DECISIONS.md.'
   );
 }

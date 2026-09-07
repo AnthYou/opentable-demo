@@ -667,7 +667,7 @@
 
 /*
  * The place line sits above cuisine and price and is weighted slightly heavier than
- * either, because with proximity leading the ranking, where a restaurant is is the column
+ * either, because with `geo` leading the ranking, where a restaurant is is the column
  * a reader scans to check the order.
  */
 .hit-place {
